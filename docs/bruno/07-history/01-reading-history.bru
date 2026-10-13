@@ -1,0 +1,27 @@
+meta {
+  name: Reading history
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/v1/me/history?limit=20
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 avec l'article lu (événement read)", function () {
+    expect(res.getStatus()).to.equal(200);
+    const items = res.getBody().items;
+    expect(items).to.have.lengthOf(1);
+    expect(items[0].article.id).to.equal(bru.getVar("articleId"));
+    expect(items[0].readAt).to.equal(bru.getVar("readAt"));
+    expect(items[0].saved).to.equal(false);
+    expect(res.getBody()).to.not.have.property("nextCursor");
+  });
+}
+
+docs {
+  Seuls open et read font entrer un article dans l'historique : la carte vue (view) du scénario n'y figure pas.
+}
