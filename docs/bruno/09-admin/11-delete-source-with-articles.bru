@@ -1,0 +1,18 @@
+meta {
+  name: Delete source with articles (409)
+  type: http
+  seq: 11
+}
+
+delete {
+  url: {{baseUrl}}/v1/admin/sources/{{sampleSourceId}}
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("409, il faut désactiver la source", function () {
+    expect(res.getStatus()).to.equal(409);
+    expect(res.getBody().detail).to.equal("Source has articles: deactivate it instead");
+  });
+}

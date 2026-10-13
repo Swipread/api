@@ -1,0 +1,31 @@
+meta {
+  name: Create source with a local address (422)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/v1/admin/sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Adresse locale",
+    "siteUrl": "{{baseUrl}}",
+    "feedUrl": "{{baseUrl}}/v3/api-docs",
+    "language": "fr"
+  }
+}
+
+tests {
+  test("422, la vérification refuse une adresse locale (protection SSRF)", function () {
+    expect(res.getStatus()).to.equal(422);
+    expect(res.getBody().detail).to.equal("Feed address is not allowed");
+  });
+}
+
+docs {
+  L'API ne télécharge que des flux publics, en http ou https sur les ports 80 et 443. Les autres échecs de vérification (pas un flux, flux vide) et la création réussie demandent un vrai flux : ils sont couverts par les tests d'intégration.
+}

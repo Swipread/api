@@ -1,0 +1,20 @@
+meta {
+  name: List sources
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/v1/admin/sources
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 avec la source d'exemple du profil dev", function () {
+    expect(res.getStatus()).to.equal(200);
+    const sample = res.getBody().find(s => s.feedUrl === "https://example.org/rss");
+    expect(sample).to.include.keys("id", "name", "siteUrl", "feedUrl", "language", "active");
+    bru.setVar("sampleSourceId", sample.id);
+  });
+}

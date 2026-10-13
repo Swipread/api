@@ -1,0 +1,26 @@
+meta {
+  name: Create source with known feed (409)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/v1/admin/sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Doublon",
+    "siteUrl": "https://example.org",
+    "feedUrl": "https://example.org/rss",
+    "language": "fr"
+  }
+}
+
+tests {
+  test("409, flux déjà utilisé", function () {
+    expect(res.getStatus()).to.equal(409);
+  });
+}
