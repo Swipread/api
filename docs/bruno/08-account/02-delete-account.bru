@@ -1,0 +1,21 @@
+meta {
+  name: Delete account
+  type: http
+  seq: 2
+}
+
+delete {
+  url: {{baseUrl}}/v1/me
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("204", function () {
+    expect(res.getStatus()).to.equal(204);
+  });
+}
+
+docs {
+  Dernière étape du scénario : le compte de test est supprimé avec ses données.
+}
