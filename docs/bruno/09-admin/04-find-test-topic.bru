@@ -1,0 +1,20 @@
+meta {
+  name: Find test topic
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/v1/admin/topics
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("le thème de test est listé", function () {
+    expect(res.getStatus()).to.equal(200);
+    const topic = res.getBody().find(t => t.slug === "theme-de-test");
+    expect(topic).to.exist;
+    bru.setVar("testTopicId", topic.id);
+  });
+}

@@ -1,0 +1,30 @@
+meta {
+  name: Create topic (201, or 409 on later runs)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/v1/admin/topics
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "label": "Thème de test"
+  }
+}
+
+tests {
+  test("201 au premier passage, 409 ensuite", function () {
+    expect([201, 409]).to.include(res.getStatus());
+    if (res.getStatus() === 201) {
+      expect(res.getBody().slug).to.equal("theme-de-test");
+    }
+  });
+}
+
+docs {
+  Libellé fixe : un seul thème de test est créé dans la base de dev, quel que soit le nombre de passages.
+}

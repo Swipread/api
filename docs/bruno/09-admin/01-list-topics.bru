@@ -1,0 +1,20 @@
+meta {
+  name: List topics with counts
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/v1/admin/topics
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 avec les compteurs", function () {
+    expect(res.getStatus()).to.equal(200);
+    const tech = res.getBody().find(t => t.slug === "tech");
+    expect(tech).to.have.all.keys("id", "slug", "label", "articleCount", "readerCount");
+    expect(tech.articleCount).to.be.a("number");
+  });
+}

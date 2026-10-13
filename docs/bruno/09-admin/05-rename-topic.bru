@@ -1,0 +1,25 @@
+meta {
+  name: Rename topic
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/v1/admin/topics/{{testTopicId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "label": "Thème de test (renommé)"
+  }
+}
+
+tests {
+  test("200, le slug ne change pas", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().label).to.equal("Thème de test (renommé)");
+    expect(res.getBody().slug).to.equal("theme-de-test");
+  });
+}

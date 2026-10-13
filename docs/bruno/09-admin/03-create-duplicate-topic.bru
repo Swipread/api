@@ -1,0 +1,24 @@
+meta {
+  name: Create duplicate topic (409)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/v1/admin/topics
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "label": "THEME DE TEST"
+  }
+}
+
+tests {
+  test("409, même slug que le thème de test", function () {
+    expect(res.getStatus()).to.equal(409);
+    expect(res.getHeader("content-type")).to.contain("application/problem+json");
+  });
+}
