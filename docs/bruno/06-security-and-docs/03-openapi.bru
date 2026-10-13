@@ -1,0 +1,26 @@
+meta {
+  name: OpenAPI spec
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/v3/api-docs
+  body: none
+  auth: none
+}
+
+tests {
+  test("200 avec les endpoints principaux", function () {
+    expect(res.getStatus()).to.equal(200);
+    const paths = Object.keys(res.getBody().paths);
+    expect(paths).to.include.members(["/v1/feed", "/v1/events", "/v1/me/saved", "/v1/auth/login"]);
+  });
+
+  test("erreurs déclarées en ProblemDetail", function () {
+    const spec = res.getBody();
+    expect(spec.components.schemas).to.have.property("ProblemDetail");
+    const conflict = spec.paths["/v1/auth/register"].post.responses["409"];
+    expect(conflict.content["application/problem+json"].schema["$ref"]).to.equal("#/components/schemas/ProblemDetail");
+  });
+}

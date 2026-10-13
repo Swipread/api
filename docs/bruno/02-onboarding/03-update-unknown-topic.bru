@@ -1,0 +1,25 @@
+meta {
+  name: Update with unknown topic (400)
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/v1/me/topics
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "topicIds": {{unknownTopicIds}}
+  }
+}
+
+tests {
+  test("400 qui nomme l'ID inconnu", function () {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getHeader("content-type")).to.contain("application/problem+json");
+    expect(res.getBody().detail).to.equal("Unknown topic ids: [999999]");
+  });
+}

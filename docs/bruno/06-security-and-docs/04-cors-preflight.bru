@@ -1,0 +1,25 @@
+meta {
+  name: CORS preflight from the frontend
+  type: http
+  seq: 4
+}
+
+options {
+  url: {{baseUrl}}/v1/me
+  body: none
+  auth: none
+}
+
+headers {
+  Origin: http://localhost:5173
+  Access-Control-Request-Method: GET
+  Access-Control-Request-Headers: authorization, x-session-id, x-device
+}
+
+tests {
+  test("200 sans token, avec les en-têtes CORS", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getHeader("access-control-allow-origin")).to.equal("http://localhost:5173");
+    expect(res.getHeader("access-control-allow-methods")).to.contain("PATCH");
+  });
+}
