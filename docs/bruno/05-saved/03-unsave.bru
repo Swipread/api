@@ -1,0 +1,39 @@
+meta {
+  name: Unsave the article
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/v1/events
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "sessionId": "{{sessionId}}",
+    "events": [
+      {
+        "eventId": "{{unsaveEventId}}",
+        "type": "unsave",
+        "articleId": "{{articleId}}",
+        "requestId": "{{requestId}}",
+        "occurredAt": "{{unsaveAt}}"
+      }
+    ]
+  }
+}
+
+script:pre-request {
+  const now = Date.now();
+  bru.setVar("unsaveEventId", `e_unsave_${now}`);
+  bru.setVar("unsaveAt", new Date(now).toISOString());
+}
+
+tests {
+  test("202", function () {
+    expect(res.getStatus()).to.equal(202);
+    expect(res.getBody().accepted).to.equal(1);
+  });
+}

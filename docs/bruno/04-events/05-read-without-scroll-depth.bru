@@ -1,0 +1,44 @@
+meta {
+  name: Read without scrollDepth
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/v1/events
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "sessionId": "{{sessionId}}",
+    "events": [
+      {
+        "eventId": "{{readEventId}}",
+        "type": "read",
+        "articleId": "{{articleId}}",
+        "requestId": "{{requestId}}",
+        "occurredAt": "{{readAt}}",
+        "payload": { "readMs": 45000 }
+      }
+    ]
+  }
+}
+
+script:pre-request {
+  const now = Date.now();
+  bru.setVar("readEventId", `e_read_${now}`);
+  bru.setVar("readAt", new Date(now - 500).toISOString());
+}
+
+tests {
+  test("202, accepté sans scrollDepth", function () {
+    expect(res.getStatus()).to.equal(202);
+    expect(res.getBody()).to.deep.equal({ accepted: 1, duplicates: 0 });
+  });
+}
+
+docs {
+  Sur le web, l'article s'ouvre sur le site de la source : le front n'envoie que readMs.
+}
