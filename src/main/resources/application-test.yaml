@@ -1,0 +1,15 @@
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed
+
+swipread:
+  auth:
+    refresh-cookie-secure: false
+  cors:
+    # Serveur de dev du frontend (Vite)
+    allowed-origins: http://localhost:5173
+  jwt:
+    secret: test-secret-test-secret-test-secret-test-secret-0123
+  sources:
+    # Les tests d'intégration servent leurs flux depuis localhost, sur un port aléatoire
+    allow-local-feeds: true

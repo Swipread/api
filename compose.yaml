@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: 'pgvector/pgvector:pg17'
+    labels:
+      # Image non reconnue automatiquement par Spring Boot
+      org.springframework.boot.service-connection: postgres
+    environment:
+      - 'POSTGRES_DB=swipread'
+      - 'POSTGRES_USER=swipread'
+      - 'POSTGRES_PASSWORD=swipread'
+    ports:
+      - '5432'
+  redis:
+    image: 'redis:7.4'
+    ports:
+      - '6379'

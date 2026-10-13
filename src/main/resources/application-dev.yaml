@@ -1,0 +1,18 @@
+spring:
+  docker:
+    compose:
+      enabled: true
+      lifecycle-management: start-only
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed,classpath:db/dev-data
+
+swipread:
+  auth:
+    # Dev en HTTP : un cookie Secure ne serait pas renvoyé par tous les navigateurs
+    refresh-cookie-secure: false
+  cors:
+    # Serveur de dev du frontend (Vite)
+    allowed-origins: http://localhost:5173
+  jwt:
+    # Clé de dev uniquement, jamais utilisée hors profil dev
+    secret: dev-secret-change-me-dev-secret-change-me-0123456789

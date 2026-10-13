@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: swipread-api
+  profiles:
+    group:
+      dev: mock-reco
+      test: mock-reco
+  docker:
+    compose:
+      enabled: false
+  datasource:
+    hikari:
+      # Les bornes de partition et les dates sans fuseau du DDL sont interprétées en UTC
+      connection-init-sql: SET TIME ZONE 'UTC'
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  jackson:
+    default-property-inclusion: non_null
+  threads:
+    virtual:
+      enabled: true
+
+springdoc:
+  default-produces-media-type: application/json
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+swipread:
+  jwt:
+    secret: ${SWIPREAD_JWT_SECRET}
+    # Access token court : il est renouvelé par le refresh token (cookie)
+    ttl: 15m
+  auth:
+    refresh-ttl: 30d
+    refresh-grace: 10s
+    refresh-cookie-secure: true
+  cors:
+    # Liste séparée par des virgules ; vide par défaut
+    allowed-origins: ${SWIPREAD_CORS_ALLOWED_ORIGINS:}
+  reco:
+    base-url: ${SWIPREAD_RECO_URL:http://localhost:8081}
+    timeout: 300ms
+  feed:
+    page-size: 10
+    stock-size: 50
+    refill-threshold: 20
