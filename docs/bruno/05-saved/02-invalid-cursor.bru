@@ -1,0 +1,18 @@
+meta {
+  name: Invalid cursor (400)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/v1/me/saved?cursor=garbage
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("400 au format ProblemDetail", function () {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getHeader("content-type")).to.contain("application/problem+json");
+  });
+}

@@ -1,0 +1,46 @@
+meta {
+  name: Next page (reco)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/v1/feed
+  body: none
+  auth: inherit
+}
+
+headers {
+  X-Session-Id: {{sessionId}}
+  X-Device: mobile
+}
+
+script:pre-request {
+  // Laisse le temps au remplissage asynchrone du stock
+  await new Promise(resolve => setTimeout(resolve, 1500));
+}
+
+tests {
+  test("200 avec 10 articles venant de la reco", function () {
+    expect(res.getStatus()).to.equal(200);
+    const items = res.getBody().items;
+    expect(items).to.have.lengthOf(10);
+    items.forEach(item => {
+      expect(item.requestId).to.match(/^r_/);
+      expect(item.reason).to.not.equal("fallback");
+    });
+    const first = items[0];
+    bru.setVar("articleId", first.articleId);
+    bru.setVar("requestId", first.requestId);
+    bru.setVar("position", first.position);
+  });
+
+  test("aucun article déjà servi", function () {
+    const seen = JSON.parse(bru.getVar("firstPageIds"));
+    res.getBody().items.forEach(item => expect(seen).to.not.include(item.articleId));
+  });
+}
+
+docs {
+  Avec le profil mock-reco, reason vaut "explore".
+}

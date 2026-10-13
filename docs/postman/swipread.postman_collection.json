@@ -1,0 +1,1693 @@
+{
+  "info": {
+    "name": "Swipread API",
+    "description": "Scénario de bout en bout de l'API Swipread (voir docs/api.md). À lancer dans l'ordre (Run collection), API démarrée en profil dev (mock de reco). Même scénario que la collection Bruno de docs/bruno.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "01 Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"displayName\": \"Smoke test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"email\", `smoke+${Date.now()}@example.org`);",
+                  "pm.collectionVariables.set(\"sessionId\", `s_${Date.now()}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 avec un token\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.tokenType).to.equal(\"Bearer\");",
+                  "  pm.expect(body.accessToken).to.be.a(\"string\").and.not.be.empty;",
+                  "  pm.expect(body.userId).to.match(/^u_[0-9A-Z]{26}$/);",
+                  "  pm.collectionVariables.set(\"accessToken\", body.accessToken);",
+                  "  pm.collectionVariables.set(\"userId\", body.userId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register duplicate email (409)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"displayName\": \"Smoke test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"409 au format ProblemDetail\", function () {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "  pm.expect(pm.response.json().status).to.equal(409);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register invalid body (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "fr-FR,fr;q=0.9"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"short\",\n  \"displayName\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 avec le détail par champ\", function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "  const fields = pm.response.json().errors.map(e => e.field);",
+                  "  pm.expect(fields).to.have.members([\"email\", \"password\", \"displayName\"]);",
+                  "});",
+                  "",
+                  "pm.test(\"codes de contrainte et messages en anglais malgré Accept-Language: fr\", function () {",
+                  "  const byField = Object.fromEntries(pm.response.json().errors.map(e => [e.field, e]));",
+                  "  pm.expect(byField.email.code).to.equal(\"Email\");",
+                  "  pm.expect(byField.password.code).to.equal(\"Size\");",
+                  "  pm.expect(byField.displayName.code).to.equal(\"NotBlank\");",
+                  "  pm.expect(byField.displayName.message).to.equal(\"must not be blank\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec un nouveau token pour le même utilisateur\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.userId).to.equal(pm.collectionVariables.get(\"userId\"));",
+                  "  pm.collectionVariables.set(\"accessToken\", body.accessToken);",
+                  "});",
+                  "",
+                  "pm.test(\"cookie de refresh HttpOnly, limité à /v1/auth\", function () {",
+                  "  const cookie = pm.response.headers.all().filter(h => h.key.toLowerCase() === \"set-cookie\").map(h => h.value)",
+                  "    .find(v => v.startsWith(\"swipread_refresh=\"));",
+                  "  pm.expect(cookie).to.include(\"HttpOnly\").and.include(\"SameSite=Strict\").and.include(\"Path=/v1/auth\");",
+                  "  pm.collectionVariables.set(\"refreshCookie\", cookie.split(\";\")[0].split(\"=\")[1]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login wrong password (401)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 au format ProblemDetail\", function () {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh (rotation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "swipread_refresh={{refreshCookie}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/auth/refresh",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Le refresh token voyage dans le cookie HttpOnly swipread_refresh ; ici il est renvoyé explicitement pour ne pas dépendre de la gestion des cookies de l'outil."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec un access token de 15 min et un nouveau cookie\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.accessToken).to.be.a(\"string\").and.not.be.empty;",
+                  "  pm.expect(body.expiresIn).to.equal(900);",
+                  "  const cookie = pm.response.headers.all().filter(h => h.key.toLowerCase() === \"set-cookie\").map(h => h.value).find(v => v.startsWith(\"swipread_refresh=\"));",
+                  "  const next = cookie.split(\";\")[0].split(\"=\")[1];",
+                  "  pm.expect(next).to.not.equal(pm.collectionVariables.get(\"refreshCookie\"));",
+                  "  pm.collectionVariables.set(\"accessToken\", body.accessToken);",
+                  "  pm.collectionVariables.set(\"refreshCookie\", next);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "swipread_refresh={{refreshCookie}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/auth/logout",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "L'access token obtenu au refresh reste valable jusqu'à son expiration : les dossiers suivants l'utilisent."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204, cookie effacé\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "  const cookie = pm.response.headers.all().filter(h => h.key.toLowerCase() === \"set-cookie\").map(h => h.value).find(v => v.startsWith(\"swipread_refresh=\"));",
+                  "  pm.expect(cookie).to.include(\"Max-Age=0\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh after logout (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "swipread_refresh={{refreshCookie}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/auth/refresh",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401, le refresh token est révoqué\", function () {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.json().detail).to.equal(\"Invalid refresh token\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Onboarding",
+      "item": [
+        {
+          "name": "List topics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/topics"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec au moins six thèmes\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const topics = pm.response.json();",
+                  "  pm.expect(topics).to.be.an(\"array\").with.length.of.at.least(6);",
+                  "  pm.expect(topics[0]).to.have.all.keys(\"id\", \"slug\", \"label\");",
+                  "  pm.collectionVariables.set(\"topicIds\", JSON.stringify([topics[0].id, topics[1].id, topics[2].id]));",
+                  "  // Autres thèmes, pour le changement de thèmes du dossier 03 Feed",
+                  "  pm.collectionVariables.set(\"otherTopicIds\", JSON.stringify([topics[3].id, topics[4].id, topics[5].id]));",
+                  "  // 3 IDs pour passer le minimum, dont un inconnu",
+                  "  pm.collectionVariables.set(\"unknownTopicIds\", JSON.stringify([topics[0].id, topics[1].id, 999999]));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update my topics",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me/topics",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topicIds\": {{topicIds}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec les thèmes enregistrés\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const ids = pm.response.json().map(t => t.id);",
+                  "  pm.expect(ids).to.have.members(JSON.parse(pm.collectionVariables.get(\"topicIds\")));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update with unknown topic (400)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me/topics",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topicIds\": {{unknownTopicIds}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 qui nomme l'ID inconnu\", function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "  pm.expect(pm.response.json().detail).to.equal(\"Unknown topic ids: [999999]\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec le profil et les thèmes choisis\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const me = pm.response.json();",
+                  "  pm.expect(me.id).to.equal(pm.collectionVariables.get(\"userId\"));",
+                  "  pm.expect(me.email).to.equal(pm.collectionVariables.get(\"email\"));",
+                  "  pm.expect(me.locale).to.equal(\"fr-FR\");",
+                  "  pm.expect(me.role).to.equal(\"READER\");",
+                  "  pm.expect(me.topics.map(t => t.id)).to.have.members(JSON.parse(pm.collectionVariables.get(\"topicIds\")));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Feed",
+      "item": [
+        {
+          "name": "First page (fallback)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Session-Id",
+                "value": "{{sessionId}}"
+              },
+              {
+                "key": "X-Device",
+                "value": "mobile"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/feed",
+            "description": "Stock vide pour un nouvel utilisateur : la page vient du feed de repli et le remplissage par la reco part en arrière-plan."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec 10 articles servis par le repli\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const items = pm.response.json().items;",
+                  "  pm.expect(items).to.have.lengthOf(10);",
+                  "  items.forEach((item, i) => {",
+                  "    pm.expect(item.position).to.equal(i);",
+                  "    pm.expect(item.reason).to.equal(\"fallback\");",
+                  "    pm.expect(item.requestId).to.equal(\"fallback\");",
+                  "    pm.expect(item.articleId).to.match(/^a_/);",
+                  "    pm.expect(item.title).to.be.a(\"string\").and.not.be.empty;",
+                  "    pm.expect(item.topics).to.be.an(\"array\");",
+                  "    pm.expect(item.liked).to.equal(false);",
+                  "    pm.expect(item.saved).to.equal(false);",
+                  "  });",
+                  "  pm.collectionVariables.set(\"firstPageIds\", JSON.stringify(items.map(i => i.articleId)));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Next page (reco)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Session-Id",
+                "value": "{{sessionId}}"
+              },
+              {
+                "key": "X-Device",
+                "value": "mobile"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/feed",
+            "description": "Avec le profil mock-reco, reason vaut \"explore\"."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Laisse le temps au remplissage asynchrone du stock",
+                  "setTimeout(function () {}, 1500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec 10 articles venant de la reco\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const items = pm.response.json().items;",
+                  "  pm.expect(items).to.have.lengthOf(10);",
+                  "  items.forEach(item => {",
+                  "    pm.expect(item.requestId).to.match(/^r_/);",
+                  "    pm.expect(item.reason).to.not.equal(\"fallback\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"articleId\", items[0].articleId);",
+                  "  pm.collectionVariables.set(\"requestId\", items[0].requestId);",
+                  "  pm.collectionVariables.set(\"position\", items[0].position);",
+                  "});",
+                  "",
+                  "pm.test(\"aucun article déjà servi\", function () {",
+                  "  const seen = JSON.parse(pm.collectionVariables.get(\"firstPageIds\"));",
+                  "  pm.response.json().items.forEach(item => pm.expect(seen).to.not.include(item.articleId));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change topics (stock emptied)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topicIds\": {{otherTopicIds}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/v1/me/topics",
+            "description": "US4 : le stock du feed, calculé sur les anciens thèmes, est vidé après l'enregistrement. seen:{userId} est conservé."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec les nouveaux thèmes\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const ids = pm.response.json().map(t => t.id);",
+                  "  pm.expect(ids).to.have.members(JSON.parse(pm.collectionVariables.get(\"otherTopicIds\")));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Page after topics change (fallback)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Session-Id",
+                "value": "{{sessionId}}"
+              },
+              {
+                "key": "X-Device",
+                "value": "mobile"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/feed",
+            "description": "Sans vidage, cette page viendrait encore du stock de la reco (reason \"explore\")."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec une page servie par le repli : le stock a été vidé\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const items = pm.response.json().items;",
+                  "  pm.expect(items).to.have.lengthOf(10);",
+                  "  items.forEach(item => pm.expect(item.reason).to.equal(\"fallback\"));",
+                  "});",
+                  "",
+                  "pm.test(\"aucun article déjà servi\", function () {",
+                  "  const seen = JSON.parse(pm.collectionVariables.get(\"firstPageIds\"));",
+                  "  pm.response.json().items.forEach(item => pm.expect(seen).to.not.include(item.articleId));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Events",
+      "item": [
+        {
+          "name": "Send batch (view + save)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/events",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"events\": [\n    {\n      \"eventId\": \"{{viewEventId}}\",\n      \"type\": \"view\",\n      \"articleId\": \"{{articleId}}\",\n      \"requestId\": \"{{requestId}}\",\n      \"position\": {{position}},\n      \"occurredAt\": \"{{viewAt}}\",\n      \"payload\": { \"dwellMs\": 4200 }\n    },\n    {\n      \"eventId\": \"{{saveEventId}}\",\n      \"type\": \"save\",\n      \"articleId\": \"{{articleId}}\",\n      \"requestId\": \"{{requestId}}\",\n      \"position\": {{position}},\n      \"occurredAt\": \"{{saveAt}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const now = Date.now();",
+                  "pm.collectionVariables.set(\"viewEventId\", `e_view_${now}`);",
+                  "pm.collectionVariables.set(\"saveEventId\", `e_save_${now}`);",
+                  "pm.collectionVariables.set(\"viewAt\", new Date(now - 2000).toISOString());",
+                  "pm.collectionVariables.set(\"saveAt\", new Date(now - 1000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202, les deux événements sont acceptés\", function () {",
+                  "  pm.response.to.have.status(202);",
+                  "  pm.expect(pm.response.json()).to.deep.equal({ accepted: 2, duplicates: 0 });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resend same batch (deduplicated)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/events",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"events\": [\n    {\n      \"eventId\": \"{{viewEventId}}\",\n      \"type\": \"view\",\n      \"articleId\": \"{{articleId}}\",\n      \"requestId\": \"{{requestId}}\",\n      \"position\": {{position}},\n      \"occurredAt\": \"{{viewAt}}\",\n      \"payload\": { \"dwellMs\": 4200 }\n    },\n    {\n      \"eventId\": \"{{saveEventId}}\",\n      \"type\": \"save\",\n      \"articleId\": \"{{articleId}}\",\n      \"requestId\": \"{{requestId}}\",\n      \"position\": {{position}},\n      \"occurredAt\": \"{{saveAt}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202, tout est reconnu comme doublon\", function () {",
+                  "  pm.response.to.have.status(202);",
+                  "  pm.expect(pm.response.json()).to.deep.equal({ accepted: 0, duplicates: 2 });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid payload (400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/events",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"events\": [\n    {\n      \"eventId\": \"e_invalid\",\n      \"type\": \"read\",\n      \"articleId\": \"{{articleId}}\",\n      \"occurredAt\": \"{{viewAt}}\",\n      \"payload\": { \"readMs\": 1000, \"scrollDepth\": 3 }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 qui explique le champ invalide\", function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "  pm.expect(pm.response.json().detail).to.equal(\"Event e_invalid (read): scrollDepth must be between 0 and 1\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown event type (400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/events",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"events\": [\n    { \"eventId\": \"e_unknown\", \"type\": \"teleport\", \"articleId\": \"{{articleId}}\", \"occurredAt\": \"{{viewAt}}\" }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 sur le champ type\", function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "  pm.expect(pm.response.json().errors[0].field).to.equal(\"events[0].type\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read without scrollDepth",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/events",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"events\": [\n    {\n      \"eventId\": \"{{readEventId}}\",\n      \"type\": \"read\",\n      \"articleId\": \"{{articleId}}\",\n      \"requestId\": \"{{requestId}}\",\n      \"occurredAt\": \"{{readAt}}\",\n      \"payload\": { \"readMs\": 45000 }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const now = Date.now();",
+                  "pm.collectionVariables.set(\"readEventId\", `e_read_${now}`);",
+                  "pm.collectionVariables.set(\"readAt\", new Date(now - 500).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202, accepté sans scrollDepth\", function () {",
+                  "  pm.response.to.have.status(202);",
+                  "  pm.expect(pm.response.json()).to.deep.equal({ accepted: 1, duplicates: 0 });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Saved",
+      "item": [
+        {
+          "name": "List saved articles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me/saved?limit=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec l'article sauvegardé\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.items).to.have.lengthOf(1);",
+                  "  pm.expect(body.items[0].article.id).to.equal(pm.collectionVariables.get(\"articleId\"));",
+                  "  pm.expect(body.items[0].savedAt).to.be.a(\"string\");",
+                  "  pm.expect(body.items[0].liked).to.be.a(\"boolean\");",
+                  "  pm.expect(body.items[0].article.topics).to.be.an(\"array\");",
+                  "  pm.expect(body).to.not.have.property(\"nextCursor\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid cursor (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me/saved?cursor=garbage"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 au format ProblemDetail\", function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unsave the article",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/events",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"events\": [\n    {\n      \"eventId\": \"{{unsaveEventId}}\",\n      \"type\": \"unsave\",\n      \"articleId\": \"{{articleId}}\",\n      \"requestId\": \"{{requestId}}\",\n      \"occurredAt\": \"{{unsaveAt}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const now = Date.now();",
+                  "pm.collectionVariables.set(\"unsaveEventId\", `e_unsave_${now}`);",
+                  "pm.collectionVariables.set(\"unsaveAt\", new Date(now).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202\", function () {",
+                  "  pm.response.to.have.status(202);",
+                  "  pm.expect(pm.response.json().accepted).to.equal(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Saved list is empty after unsave",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me/saved"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 sans article\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().items).to.have.lengthOf(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 Security and docs",
+      "item": [
+        {
+          "name": "Me without token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 avec WWW-Authenticate\", function () {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.headers.get(\"WWW-Authenticate\")).to.include(\"Bearer\");",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me with invalid token (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer not.a.jwt"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/me",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401\", function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OpenAPI spec",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v3/api-docs",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec les endpoints principaux\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const paths = Object.keys(pm.response.json().paths);",
+                  "  pm.expect(paths).to.include.members([\"/v1/feed\", \"/v1/events\", \"/v1/me/saved\", \"/v1/auth/login\"]);",
+                  "});",
+                  "pm.test(\"erreurs déclarées en ProblemDetail\", function () {",
+                  "  const spec = pm.response.json();",
+                  "  pm.expect(spec.components.schemas).to.have.property(\"ProblemDetail\");",
+                  "  const conflict = spec.paths[\"/v1/auth/register\"].post.responses[\"409\"];",
+                  "  pm.expect(conflict.content[\"application/problem+json\"].schema[\"$ref\"]).to.equal(\"#/components/schemas/ProblemDetail\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CORS preflight from the frontend",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "OPTIONS",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "http://localhost:5173"
+              },
+              {
+                "key": "Access-Control-Request-Method",
+                "value": "GET"
+              },
+              {
+                "key": "Access-Control-Request-Headers",
+                "value": "authorization, x-session-id, x-device"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 sans token, avec les en-têtes CORS\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"Access-Control-Allow-Origin\")).to.equal(\"http://localhost:5173\");",
+                  "  pm.expect(pm.response.headers.get(\"Access-Control-Allow-Methods\")).to.contain(\"PATCH\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin route as reader (403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/admin/ping"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 en ProblemDetail\", function () {",
+                  "  pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as seeded admin",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@swipread.dev\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec un token\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.collectionVariables.set(\"adminToken\", pm.response.json().accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin profile has role ADMIN",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec role ADMIN\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().role).to.equal(\"ADMIN\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 History",
+      "item": [
+        {
+          "name": "Reading history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me/history?limit=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec l'article lu (événement read)\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.items).to.have.lengthOf(1);",
+                  "  pm.expect(body.items[0].article.id).to.equal(pm.collectionVariables.get(\"articleId\"));",
+                  "  pm.expect(body.items[0].readAt).to.equal(pm.collectionVariables.get(\"readAt\"));",
+                  "  pm.expect(body.items[0].saved).to.equal(false);",
+                  "  pm.expect(body).to.not.have.property(\"nextCursor\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 Account",
+      "item": [
+        {
+          "name": "Change display name",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Renamed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec le nouveau nom\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().displayName).to.equal(\"Renamed\");",
+                  "  pm.expect(pm.response.json().id).to.equal(pm.collectionVariables.get(\"userId\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete account",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Token rejected after deletion (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401\", function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "09 Admin",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{adminToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "List topics with counts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/admin/topics"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec les compteurs\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const tech = pm.response.json().find(t => t.slug === \"tech\");",
+                  "  pm.expect(tech).to.have.all.keys(\"id\", \"slug\", \"label\", \"articleCount\", \"readerCount\");",
+                  "  pm.expect(tech.articleCount).to.be.a(\"number\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create topic (201, or 409 on later runs)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/admin/topics",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Thème de test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 au premier passage, 409 ensuite\", function () {",
+                  "  pm.expect([201, 409]).to.include(pm.response.code);",
+                  "  if (pm.response.code === 201) {",
+                  "    pm.expect(pm.response.json().slug).to.equal(\"theme-de-test\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create duplicate topic (409)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/admin/topics",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"THEME DE TEST\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"409, même slug que le thème de test\", function () {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Find test topic",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/admin/topics"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"le thème de test est listé\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const topic = pm.response.json().find(t => t.slug === \"theme-de-test\");",
+                  "  pm.expect(topic).to.exist;",
+                  "  pm.collectionVariables.set(\"testTopicId\", topic.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rename topic",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/v1/admin/topics/{{testTopicId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Thème de test (renommé)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200, le slug ne change pas\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().label).to.equal(\"Thème de test (renommé)\");",
+                  "  pm.expect(pm.response.json().slug).to.equal(\"theme-de-test\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List sources",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/admin/sources"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 avec la source d'exemple du profil dev\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const sample = pm.response.json().find(s => s.feedUrl === \"https://example.org/rss\");",
+                  "  pm.expect(sample).to.include.keys(\"id\", \"name\", \"siteUrl\", \"feedUrl\", \"language\", \"active\");",
+                  "  pm.collectionVariables.set(\"sampleSourceId\", sample.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create source with known feed (409)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/admin/sources",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Doublon\",\n  \"siteUrl\": \"https://example.org\",\n  \"feedUrl\": \"https://example.org/rss\",\n  \"language\": \"fr\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"409, flux déjà utilisé\", function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create source with a local address (422)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/admin/sources",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Adresse locale\",\n  \"siteUrl\": \"{{baseUrl}}\",\n  \"feedUrl\": \"{{baseUrl}}/v3/api-docs\",\n  \"language\": \"fr\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "L'API ne télécharge que des flux publics, en http ou https sur les ports 80 et 443. Les autres échecs de vérification (pas un flux, flux vide) et la création réussie demandent un vrai flux : ils sont couverts par les tests d'intégration."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"422, la vérification refuse une adresse locale (protection SSRF)\", function () {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().detail).to.equal(\"Feed address is not allowed\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deactivate source",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/v1/admin/sources/{{sampleSourceId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200, source inactive\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().active).to.equal(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reactivate source",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/v1/admin/sources/{{sampleSourceId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200, source de nouveau active\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().active).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete source with articles (409)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/v1/admin/sources/{{sampleSourceId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"409, il faut désactiver la source\", function () {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().detail).to.equal(\"Source has articles: deactivate it instead\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "sessionId",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshCookie",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "topicIds",
+      "value": ""
+    },
+    {
+      "key": "unknownTopicIds",
+      "value": ""
+    },
+    {
+      "key": "otherTopicIds",
+      "value": ""
+    },
+    {
+      "key": "firstPageIds",
+      "value": ""
+    },
+    {
+      "key": "articleId",
+      "value": ""
+    },
+    {
+      "key": "requestId",
+      "value": ""
+    },
+    {
+      "key": "position",
+      "value": ""
+    },
+    {
+      "key": "viewEventId",
+      "value": ""
+    },
+    {
+      "key": "saveEventId",
+      "value": ""
+    },
+    {
+      "key": "viewAt",
+      "value": ""
+    },
+    {
+      "key": "saveAt",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "readEventId",
+      "value": ""
+    },
+    {
+      "key": "readAt",
+      "value": ""
+    },
+    {
+      "key": "unsaveEventId",
+      "value": ""
+    },
+    {
+      "key": "unsaveAt",
+      "value": ""
+    },
+    {
+      "key": "testTopicId",
+      "value": ""
+    },
+    {
+      "key": "sampleSourceId",
+      "value": ""
+    }
+  ]
+}

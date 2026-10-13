@@ -1,0 +1,25 @@
+meta {
+  name: List topics
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/v1/topics
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 avec au moins six thèmes", function () {
+    expect(res.getStatus()).to.equal(200);
+    const topics = res.getBody();
+    expect(topics).to.be.an("array").with.length.of.at.least(6);
+    expect(topics[0]).to.have.all.keys("id", "slug", "label");
+    bru.setVar("topicIds", JSON.stringify([topics[0].id, topics[1].id, topics[2].id]));
+    // Autres thèmes, pour le changement de thèmes du dossier 03 Feed
+    bru.setVar("otherTopicIds", JSON.stringify([topics[3].id, topics[4].id, topics[5].id]));
+    // 3 IDs pour passer le minimum, dont un inconnu
+    bru.setVar("unknownTopicIds", JSON.stringify([topics[0].id, topics[1].id, 999999]));
+  });
+}

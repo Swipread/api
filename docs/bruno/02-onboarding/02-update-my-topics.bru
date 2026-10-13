@@ -1,0 +1,25 @@
+meta {
+  name: Update my topics
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/v1/me/topics
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "topicIds": {{topicIds}}
+  }
+}
+
+tests {
+  test("200 avec les thèmes enregistrés", function () {
+    expect(res.getStatus()).to.equal(200);
+    const ids = res.getBody().map(t => t.id);
+    expect(ids).to.have.members(JSON.parse(bru.getVar("topicIds")));
+  });
+}

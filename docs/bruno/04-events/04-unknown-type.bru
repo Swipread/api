@@ -1,0 +1,28 @@
+meta {
+  name: Unknown event type (400)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/v1/events
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "sessionId": "{{sessionId}}",
+    "events": [
+      { "eventId": "e_unknown", "type": "teleport", "articleId": "{{articleId}}", "occurredAt": "{{viewAt}}" }
+    ]
+  }
+}
+
+tests {
+  test("400 sur le champ type", function () {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getHeader("content-type")).to.contain("application/problem+json");
+    expect(res.getBody().errors[0].field).to.equal("events[0].type");
+  });
+}

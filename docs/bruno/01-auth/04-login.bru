@@ -1,0 +1,33 @@
+meta {
+  name: Login
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/v1/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{email}}",
+    "password": "{{password}}"
+  }
+}
+
+tests {
+  test("200 avec un nouveau token pour le même utilisateur", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().userId).to.equal(bru.getVar("userId"));
+    bru.setVar("accessToken", res.getBody().accessToken);
+  });
+
+  test("cookie de refresh HttpOnly, limité à /v1/auth", function () {
+    const raw = res.getHeader("set-cookie");
+    const cookie = [].concat(raw).find(c => c.startsWith("swipread_refresh="));
+    expect(cookie).to.contain("HttpOnly").and.contain("SameSite=Strict").and.contain("Path=/v1/auth");
+    bru.setVar("refreshCookie", cookie.split(";")[0].split("=")[1]);
+  });
+}

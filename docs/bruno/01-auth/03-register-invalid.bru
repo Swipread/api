@@ -1,0 +1,40 @@
+meta {
+  name: Register invalid body (400)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Accept-Language: fr-FR,fr;q=0.9
+}
+
+body:json {
+  {
+    "email": "not-an-email",
+    "password": "short",
+    "displayName": ""
+  }
+}
+
+tests {
+  test("400 avec le détail par champ", function () {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getHeader("content-type")).to.contain("application/problem+json");
+    const fields = res.getBody().errors.map(e => e.field);
+    expect(fields).to.have.members(["email", "password", "displayName"]);
+  });
+
+  test("codes de contrainte et messages en anglais malgré Accept-Language: fr", function () {
+    const byField = Object.fromEntries(res.getBody().errors.map(e => [e.field, e]));
+    expect(byField.email.code).to.equal("Email");
+    expect(byField.password.code).to.equal("Size");
+    expect(byField.displayName.code).to.equal("NotBlank");
+    expect(byField.displayName.message).to.equal("must not be blank");
+  });
+}

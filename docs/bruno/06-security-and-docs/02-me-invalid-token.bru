@@ -1,0 +1,21 @@
+meta {
+  name: Me with invalid token (401)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/v1/me
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer not.a.jwt
+}
+
+tests {
+  test("401", function () {
+    expect(res.getStatus()).to.equal(401);
+  });
+}

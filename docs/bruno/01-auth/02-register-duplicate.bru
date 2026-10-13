@@ -1,0 +1,27 @@
+meta {
+  name: Register duplicate email (409)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/v1/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{email}}",
+    "password": "{{password}}",
+    "displayName": "Smoke test"
+  }
+}
+
+tests {
+  test("409 au format ProblemDetail", function () {
+    expect(res.getStatus()).to.equal(409);
+    expect(res.getHeader("content-type")).to.contain("application/problem+json");
+    expect(res.getBody().status).to.equal(409);
+  });
+}

@@ -1,0 +1,36 @@
+meta {
+  name: Register
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/v1/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{email}}",
+    "password": "{{password}}",
+    "displayName": "Smoke test"
+  }
+}
+
+script:pre-request {
+  bru.setVar("email", `smoke+${Date.now()}@example.org`);
+  bru.setVar("sessionId", `s_${Date.now()}`);
+}
+
+tests {
+  test("201 avec un token", function () {
+    expect(res.getStatus()).to.equal(201);
+    const body = res.getBody();
+    expect(body.tokenType).to.equal("Bearer");
+    expect(body.accessToken).to.be.a("string").and.not.be.empty;
+    expect(body.userId).to.match(/^u_[0-9A-Z]{26}$/);
+    bru.setVar("accessToken", body.accessToken);
+    bru.setVar("userId", body.userId);
+  });
+}
