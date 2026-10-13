@@ -1,0 +1,24 @@
+meta {
+  name: List saved articles
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/v1/me/saved?limit=20
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 avec l'article sauvegardé", function () {
+    expect(res.getStatus()).to.equal(200);
+    const items = res.getBody().items;
+    expect(items).to.have.lengthOf(1);
+    expect(items[0].article.id).to.equal(bru.getVar("articleId"));
+    expect(items[0].savedAt).to.be.a("string");
+    expect(items[0].liked).to.be.a("boolean");
+    expect(items[0].article.topics).to.be.an("array");
+    expect(res.getBody()).to.not.have.property("nextCursor");
+  });
+}

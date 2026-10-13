@@ -1,0 +1,39 @@
+meta {
+  name: First page (fallback)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/v1/feed
+  body: none
+  auth: inherit
+}
+
+headers {
+  X-Session-Id: {{sessionId}}
+  X-Device: mobile
+}
+
+tests {
+  test("200 avec 10 articles servis par le repli", function () {
+    expect(res.getStatus()).to.equal(200);
+    const items = res.getBody().items;
+    expect(items).to.have.lengthOf(10);
+    items.forEach((item, i) => {
+      expect(item.position).to.equal(i);
+      expect(item.reason).to.equal("fallback");
+      expect(item.requestId).to.equal("fallback");
+      expect(item.articleId).to.match(/^a_/);
+      expect(item.title).to.be.a("string").and.not.be.empty;
+      expect(item.topics).to.be.an("array");
+      expect(item.liked).to.equal(false);
+      expect(item.saved).to.equal(false);
+    });
+    bru.setVar("firstPageIds", JSON.stringify(items.map(i => i.articleId)));
+  });
+}
+
+docs {
+  Stock vide pour un nouvel utilisateur : la page vient du feed de repli et le remplissage par la reco part en arrière-plan.
+}
