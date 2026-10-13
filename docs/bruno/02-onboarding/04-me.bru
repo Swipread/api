@@ -1,0 +1,23 @@
+meta {
+  name: Me
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/v1/me
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 avec le profil et les thèmes choisis", function () {
+    expect(res.getStatus()).to.equal(200);
+    const me = res.getBody();
+    expect(me.id).to.equal(bru.getVar("userId"));
+    expect(me.email).to.equal(bru.getVar("email"));
+    expect(me.locale).to.equal("fr-FR");
+    expect(me.role).to.equal("READER");
+    expect(me.topics.map(t => t.id)).to.have.members(JSON.parse(bru.getVar("topicIds")));
+  });
+}

@@ -1,0 +1,25 @@
+meta {
+  name: Login as seeded admin
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/v1/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "admin@swipread.dev",
+    "password": "{{password}}"
+  }
+}
+
+tests {
+  test("200 avec un token", function () {
+    expect(res.getStatus()).to.equal(200);
+    bru.setVar("adminToken", res.getBody().accessToken);
+  });
+}

@@ -1,0 +1,18 @@
+meta {
+  name: Admin route as reader (403)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/v1/admin/ping
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("403 en ProblemDetail", function () {
+    expect(res.getStatus()).to.equal(403);
+    expect(res.getHeader("content-type")).to.contain("application/problem+json");
+  });
+}

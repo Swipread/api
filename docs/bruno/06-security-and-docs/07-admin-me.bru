@@ -1,0 +1,22 @@
+meta {
+  name: Admin profile has role ADMIN
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/v1/me
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+}
+
+tests {
+  test("200 avec role ADMIN", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().role).to.equal("ADMIN");
+  });
+}
