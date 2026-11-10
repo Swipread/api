@@ -1,91 +1,97 @@
-# Tests
+# Testing
 
-## Tests automatisés
+## Automated tests
 
 ```bash
 ./mvnw test
 ```
 
-Docker doit tourner : les tests d'intégration démarrent leurs propres conteneurs `pgvector/pgvector:pg17` et `redis:7.4` via Testcontainers. La suite complète prend moins d'une minute.
+Docker must be running: integration tests start their own `pgvector/pgvector:pg17` and `redis:7.4` containers through Testcontainers. The full suite (161 tests) runs in about 30 seconds once the images are pulled.
 
-### Organisation
+### Test classes
 
-| Type | Classes | Ce qui est couvert |
+| Kind | Class | Covers |
 | --- | --- | --- |
-| Unitaires | `FeedServiceTest`, `FeedRefillerTest` | Pagination, état aimé/sauvegardé des articles, seuil de remplissage, verrou, stock vide, complément par le repli, filtrage des articles déjà vus, invalidation, lot écarté puis recalculé une seule fois si le stock change de version pendant le calcul |
-| Unitaires | `EventServiceTest`, `EventRulesTest` | Dédoublonnage, tri chronologique, enrichissement `articleWordCount`, événements forts (dont la règle de durée de `read`), validation des payloads, effet sur `user_articles` |
-| Unitaires | `HttpRecommendationClientTest` | Requête au format du contrat, statuts 400/404/503, timeout réel à 300 ms, service injoignable (vrai serveur HTTP local) |
-| Unitaires | `IdGeneratorTest` | Format et tri des ULID |
-| Unitaires | `SlugsTest` | Slug d'un thème : accents, casse, ponctuation |
-| Unitaires | `RomeFeedProbeTest` | Lecture RSS et Atom, flux vide, HTML, HTTP 404, hôte injoignable, refus des entités externes, redirections suivies et contrôlées à chaque saut, boucle de redirections, flux local refusé par défaut (serveur HTTP local) ; connexion par le résolveur de la politique (nom inventé), adresse interne refusée à la connexion (rebinding), hôte inconnu injoignable |
-| Unitaires | `FeedAddressPolicyTest` | Protection SSRF : plages IPv4 et IPv6 internes refusées (dont IPv4 encapsulée et NAT64), adresses publiques acceptées, ports 80 et 443 seulement, schémas `http`/`https`, résolution refusée si une seule adresse est interne, hôte inconnu distinct d'une adresse interdite |
-| Intégration | `AuthIntegrationTest` | Inscription, connexion, 401/409/400 en ProblemDetail, messages de validation en anglais avec leur `code` malgré `Accept-Language: fr` |
-| Intégration | `RefreshTokenIntegrationTest` | Cookie HttpOnly à la connexion, access token de 15 min, rotation, grâce de 10 s sans nouveau cookie, réutilisation qui révoque la famille, token absent, inconnu ou expiré, logout, suppression de compte, CORS avec credentials, stockage haché |
-| Intégration | `OnboardingIntegrationTest` | Thèmes, remplacement des choix, minimum de 3 thèmes, `/v1/me` |
-| Intégration | `CorsIntegrationTest`, `RoleIntegrationTest` | Preflight CORS sans token, origine inconnue refusée ; rôle `READER`/`ADMIN`, 403 sur `/v1/admin/**`, promotion effective au token suivant |
-| Intégration | `FeedIntegrationTest` | Première page de repli, remplissage asynchrone à 50, clés Redis, aucun doublon entre les pages, stock vidé par un changement de thèmes (seen conservé, rien vidé sur un 400) |
-| Intégration | `FallbackFeedProviderIntegrationTest` | `seenAmong` (`SMISMEMBER`), articles récents hors `seen` sur plusieurs lots, listes `fallback:{slug}` hors `seen` et hors exclus |
-| Intégration | `FeedStoreIntegrationTest` | Version du stock : ajout à la bonne version, lot écarté après une invalidation ou un changement de thèmes, suppression de compte qui efface aussi la version |
-| Intégration | `OutboxIntegrationTest` | Outbox : messages validés publiés dans l'ordre puis supprimés, rien de publié pour une transaction annulée, `enqueue` hors transaction refusé |
-| Intégration | `MockEventsConsumerIntegrationTest` | Mock de reco : message publié lu et acquitté par le groupe `mock-reco`, démarrage avec un groupe existant, consommateur retiré du groupe à l'arrêt, message illisible seulement loggé |
-| Intégration | `RecoRoleIntegrationTest` | Rôle `swipread_reco` (V5), joué avec `SET ROLE` : sans connexion, lecture de `app` mais pas de l'email ni du hash de `app.users`, aucune écriture dans `app`, écriture et création de tables dans `reco`, tables ajoutées plus tard à `app` lisibles |
-| Intégration | `EventIntegrationTest` | Écriture, agrégation, publication sur le stream, dédoublonnage, invalidation (`LTRIM` à 10 puis remplissage), partitions |
-| Intégration | `SavedArticlesIntegrationTest` | Pagination par curseur, exclusion des articles masqués, `unsave`, thèmes triés par confiance, `liked` |
-| Intégration | `AccountIntegrationTest` | Changement de nom, suppression de compte (base, Redis, message `user_deleted`), token refusé ensuite, email réutilisable |
-| Intégration | `AdminTopicsIntegrationTest` | Création (slug, 409 sur slug identique), compteurs d'articles et de lecteurs, renommage sans changer le slug, 403 pour un lecteur |
-| Intégration | `AdminSourcesIntegrationTest` | Création avec flux vérifié (serveur HTTP local), 409 sur `feedUrl` déjà utilisé, 422 si flux vide ou en erreur, désactivation, suppression (409 si la source a des articles), 403 pour un lecteur |
-| Intégration | `HistoryIntegrationTest` | Articles ouverts seulement, tri par dernière ouverture, événement en retard, exclusion des masqués, curseur |
-| Intégration | `UserArticleStatesIntegrationTest` | Lecture groupée de l'état aimé/sauvegardé |
-| Intégration | `OpenApiIntegrationTest` | Spec publique et complète, réponses JSON, erreurs 4xx en `ProblemDetail` |
+| Unit | `FeedServiceTest`, `FeedRefillerTest` | Paging, liked/saved state, refill threshold, lock, empty stock, fallback complement, seen filter, invalidation, batch discarded and recomputed once when the stock version changes |
+| Unit | `EventServiceTest`, `EventRulesTest` | Dedup, chronological order, `articleWordCount`, strong events (including the reading-time rule), payload validation, effect on `user_articles` |
+| Unit | `HttpRecommendationClientTest` | Contract request format, 400/404/503, real 300 ms timeout, unreachable service (local HTTP server) |
+| Integration | `HttpRecommendationClientContextTest` | Production wiring: without `mock-reco`, the application starts with the HTTP recommender client (dedicated context) |
+| Unit | `IdGeneratorTest` | ULID format and ordering |
+| Unit | `SlugsTest` | Topic slugs: accents, case, punctuation |
+| Unit | `RomeFeedProbeTest` | RSS and Atom, empty feed, HTML, HTTP 404, unreachable host, external entities refused, redirects followed and checked at each hop, redirect loop, local feed refused by default, connection through the policy's resolver, rebinding refused at connection time, unknown host |
+| Unit | `FeedAddressPolicyTest` | SSRF: internal IPv4 and IPv6 ranges (including embedded IPv4 and NAT64), public addresses, ports 80/443, `http`/`https`, one internal address among several, unknown host vs forbidden address |
+| Integration | `AuthIntegrationTest` | Sign-up, login, 401/409/400 as `ProblemDetail`, English validation messages with their `code` despite `Accept-Language: fr` |
+| Integration | `RefreshTokenIntegrationTest` | HttpOnly cookie on login, 15-minute access token, rotation, 10-second grace without a new cookie, reuse revoking the family, missing/unknown/expired token, logout, account deletion, CORS with credentials, hashed storage |
+| Integration | `OnboardingIntegrationTest` | Topics, replacing choices, three-topic minimum, `/v1/me` |
+| Integration | `CorsIntegrationTest`, `RoleIntegrationTest` | Preflight without token, unknown origin refused; `READER`/`ADMIN` roles, 403 on `/v1/admin/**`, promotion effective with the next token |
+| Integration | `FeedIntegrationTest` | First page from the fallback, asynchronous refill to 50, Redis keys, no duplicates across pages, stock emptied on topic change (seen kept, nothing emptied on a 400) |
+| Integration | `FallbackFeedProviderIntegrationTest` | `seenAmong` (`SMISMEMBER`), recent articles outside `seen` across several batches, `fallback:{slug}` lists outside `seen` and excluded ids |
+| Integration | `FeedStoreIntegrationTest` | Stock version: append at the right version, batch discarded after an invalidation or topic change, account deletion erasing the version |
+| Integration | `EventIntegrationTest` | Storage, aggregation, stream publication, dedup, invalidation (`LTRIM` to 10, then refill), partitions |
+| Integration | `OutboxIntegrationTest` | Committed messages published in order then removed, nothing published for a rolled-back transaction, enqueue outside a transaction refused |
+| Integration | `MockEventsConsumerIntegrationTest` | Mock recommender: message read and acknowledged by the `mock-reco` group, startup with an existing group, consumer removed at shutdown, unreadable message only logged |
+| Integration | `RecoRoleIntegrationTest` | `swipread_reco` role (V5) through `SET ROLE`: no login, reads `app` but not the email or hash of `app.users`, no writes to `app`, writes and creates tables in `reco`, tables added later to `app` readable |
+| Integration | `SavedArticlesIntegrationTest` | Cursor paging, hidden articles excluded, `unsave`, topics sorted by confidence, `liked` |
+| Integration | `HistoryIntegrationTest` | Opened articles only, order by latest opening, late events, hidden excluded, cursor |
+| Integration | `UserArticleStatesIntegrationTest` | Batched liked/saved lookup |
+| Integration | `AccountIntegrationTest` | Rename, account deletion (database, Redis, `user_deleted` message), token refused afterwards, email reusable |
+| Integration | `AdminTopicsIntegrationTest` | Creation (slug, 409 on the same slug), article and reader counts, rename keeping the slug, 403 for readers |
+| Integration | `AdminSourcesIntegrationTest` | Creation with a checked feed (local HTTP server), 409 on a used feed, 422 on empty or failing feeds, deactivation, deletion (409 when the source has articles), 403 for readers |
+| Integration | `OpenApiIntegrationTest` | Public and complete spec, JSON responses, 4xx errors as `ProblemDetail`, `FieldError.code` |
 
-### Écrire un test d'intégration
+### Writing an integration test
 
-Hériter de `swipread.api.IntegrationTest`, qui fournit :
+Extend `swipread.api.IntegrationTest`, which provides:
 
-- `mvc` (MockMvc) et `json` (JsonMapper) ;
-- `registerUser()`, qui renvoie un utilisateur avec son token (`user.bearer()`).
+- `mvc` (MockMvc) and `json` (Jackson `JsonMapper`);
+- `registerUser()`, returning a user with its token (`user.bearer()`), and `loginAdmin()` for the seeded admin.
 
-Toutes les classes partagent la même configuration, ce qui permet à Spring de réutiliser un seul contexte et un seul jeu de conteneurs. N'ajoute donc pas de `@MockitoBean` ou de propriété spécifique sans raison : cela recréerait un contexte, avec de nouveaux conteneurs.
+All classes share the same configuration, so Spring reuses one application context and one set of containers. Do not add `@MockitoBean` or test-specific properties without a good reason: that creates a new context with new containers. To isolate a collaborator, construct the class under test by hand with the beans you need (see `OutboxIntegrationTest` or `MockEventsConsumerIntegrationTest`).
 
-Les données ne sont pas nettoyées entre les tests. Chaque test crée son propre utilisateur (email aléatoire) et `TestArticles.seed(jdbc, n)` insère des articles de façon idempotente. Pour attendre le remplissage asynchrone du stock, utiliser Awaitility (`await().until(...)`).
+Data is not cleaned between tests. Each test creates its own user (random email), and `TestArticles.seed(jdbc, n)` inserts articles idempotently. Wait for asynchronous work (stock refill, outbox relay, stream consumer) with Awaitility (`await().until(...)`), never with `Thread.sleep`.
 
-`TestApiApplication` lance l'application avec les conteneurs de test, sans Docker Compose. C'est pratique pour un essai rapide depuis l'IDE.
+`TestApiApplication` starts the application with the test containers and without Docker Compose, which is handy for a quick try from the IDE.
 
-## Scénario de bout en bout (Bruno / Postman)
+## End-to-end scenarios (Bruno and Postman)
 
-Le même scénario existe en deux versions, à choisir selon l'outil du testeur. Il déroule tout le parcours avec des assertions : 47 requêtes et 52 tests. Le dossier « 08 Account » supprime le compte de test ; « 09 Admin » se connecte avec le compte admin du seed et crée une seule fois un thème « Thème de test » dans la base de dev. Il ne crée pas de source (il faudrait un vrai flux en ligne) : cette création est couverte par les tests d'intégration.
+The same scenario exists in two versions, for testers on either tool. It walks the whole API with assertions: 47 requests and 52 tests. Test names are in French (the testers' language).
 
-| Dossier | Ce qui est vérifié |
+It expects the API in the `dev` profile with the mock recommender: feed tests expect `reason: "explore"`. Each run creates a new user (`smoke+<timestamp>@example.org`), so it can be run again at will. « 08 Account » deletes that user; « 09 Admin » logs in with the seeded admin and creates a « Thème de test » topic once in the development database. No source is created (that would need a real online feed); source creation is covered by the integration tests.
+
+| Folder | Checks |
 | --- | --- |
-| 01 Auth | Inscription, email déjà pris (409), corps invalide (400 avec le détail par champ), connexion, mauvais mot de passe (401) ; codes de contrainte (`Email`, `Size`, `NotBlank`) et message en anglais malgré `Accept-Language: fr` ; cookie de refresh HttpOnly, renouvellement avec rotation, déconnexion, renouvellement refusé après déconnexion (401) |
-| 02 Onboarding | Liste des thèmes (au moins six), choix de trois thèmes, thème inconnu (400), `/v1/me` |
-| 03 Feed | Première page servie par le repli, puis page de la reco 1,5 s plus tard, sans article déjà servi ; changement de thèmes, puis page servie par le repli (stock vidé) |
-| 04 Events | Lot `view` + `save` accepté, même lot renvoyé et dédoublonné, payload invalide, type inconnu |
-| 05 Saved | L'article sauvegardé apparaît, curseur invalide (400) |
-| 06 Security and docs | 401 sans token et avec un token invalide, spec OpenAPI |
+| 01 Auth | Sign-up, email taken (409), invalid body (400 with per-field `code` and English messages despite `Accept-Language: fr`), login, wrong password (401), HttpOnly refresh cookie, rotation, logout, refresh refused after logout (401) |
+| 02 Onboarding | Topic list (at least six), choosing three topics, unknown topic (400), `/v1/me` |
+| 03 Feed | First page from the fallback, recommender page 1.5 s later without articles already served, topic change then a page from the fallback (stock emptied) |
+| 04 Events | `view` + `save` batch accepted, same batch resent and deduplicated, invalid payload, unknown type, `read` without `scrollDepth` |
+| 05 Saved | The saved article is listed, invalid cursor (400), `unsave`, list empty afterwards |
+| 06 Security and docs | 401 without token and with an invalid token, OpenAPI spec, CORS preflight from the web app's origin, admin route as a reader (403), admin login, admin profile with role `ADMIN` |
+| 07 History | The opened article is in the history |
+| 08 Account | Rename, account deletion, token refused afterwards (401) |
+| 09 Admin | Topics with counts, topic creation (201, or 409 on later runs), duplicate (409), rename, source list, known feed (409), local address refused by the SSRF protection (422), deactivate, reactivate, delete a source with articles (409) |
 
-Il suppose l'API lancée en profil `dev`, avec le mock de reco : les tests du feed attendent `reason: "explore"`. Chaque exécution crée un nouvel utilisateur (`smoke+<timestamp>@example.org`) et peut donc être relancée à volonté.
+> Any change to the scenario must be made in both versions.
 
-> Toute modification du scénario doit être reportée dans les deux versions.
+The refresh cookie is captured from `Set-Cookie` and sent back explicitly in a `Cookie` header, so the scenario does not depend on each tool's cookie jar.
 
-### Bruno — [bruno/](bruno/)
+### Bruno: [`bruno/`](bruno/)
 
-- Dans l'application Bruno : *Open Collection* → `docs/bruno`, choisir l'environnement `dev`, puis *Run* sur la collection.
-- En ligne de commande (`npm i -g @usebruno/cli`) :
+- In the Bruno app: *Open Collection* → `docs/bruno`, pick the `dev` environment, then *Run* the collection.
+- From the command line (`npm i -g @usebruno/cli`):
 
 ```bash
 cd docs/bruno
 bru run --env dev
-# autre port : bru run --env dev --env-var baseUrl=http://localhost:8089
+# another port: bru run --env dev --env-var baseUrl=http://localhost:8089
 ```
 
-### Postman — [postman/](postman/)
+### Postman: [`postman/`](postman/)
 
-- Dans Postman : *Import* → `swipread.postman_collection.json` et `swipread-dev.postman_environment.json`, sélectionner l'environnement *Swipread dev*, puis *Run collection*. Les requêtes doivent être lancées dans l'ordre de la collection.
-- En ligne de commande avec Newman :
+- In Postman: *Import* `swipread.postman_collection.json` and `swipread-dev.postman_environment.json`, select the *Swipread dev* environment, then *Run collection*, in order.
+- From the command line with Newman:
 
 ```bash
 npx newman run docs/postman/swipread.postman_collection.json \
   -e docs/postman/swipread-dev.postman_environment.json
-# autre port : ajouter --env-var baseUrl=http://localhost:8089
+# another port: add --env-var baseUrl=http://localhost:8089
 ```

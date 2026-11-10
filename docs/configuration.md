@@ -1,70 +1,75 @@
 # Configuration
 
-Toute la configuration est dans `src/main/resources/application.yaml`, surchargée par `application-dev.yaml` et `application-test.yaml`. Toute propriété peut être redéfinie par une variable d'environnement, selon la convention Spring : `swipread.reco.base-url` devient `SWIPREAD_RECO_BASE_URL`.
+All configuration lives in `src/main/resources/application.yaml`, overridden by `application-dev.yaml` and `application-test.yaml`. Any property can be set from an environment variable following Spring's relaxed binding: `swipread.feed.page-size` becomes `SWIPREAD_FEED_PAGE_SIZE`.
 
-## Propriétés de l'application
+## Application properties
 
-| Propriété | Défaut | Variable d'environnement | Rôle |
+| Property | Default | Environment variable | Purpose |
 | --- | --- | --- | --- |
-| `swipread.jwt.secret` | aucun (obligatoire) | `SWIPREAD_JWT_SECRET` | Clé HMAC de signature des JWT, au moins 32 caractères |
-| `swipread.jwt.ttl` | `15m` | `SWIPREAD_JWT_TTL` | Durée de validité d'un access token |
-| `swipread.auth.refresh-ttl` | `30d` | `SWIPREAD_AUTH_REFRESH_TTL` | Durée de vie d'un refresh token, repartie à chaque renouvellement |
-| `swipread.auth.refresh-grace` | `10s` | `SWIPREAD_AUTH_REFRESH_GRACE` | Délai pendant lequel un refresh token tout juste remplacé reste accepté sans rotation (onglets simultanés) |
-| `swipread.auth.refresh-cookie-secure` | `true` | `SWIPREAD_AUTH_REFRESH_COOKIE_SECURE` | Attribut `Secure` du cookie. `false` en dev et en test (HTTP) ; **toujours `true` en production** |
-| `swipread.cors.allowed-origins` | vide | `SWIPREAD_CORS_ALLOWED_ORIGINS` | Origines du frontend autorisées à appeler l'API depuis un navigateur, séparées par des virgules. `http://localhost:5173` en dev et en test |
-| `swipread.reco.base-url` | `http://localhost:8081` | `SWIPREAD_RECO_URL` | URL du service de reco (ignorée avec `mock-reco`) |
-| `swipread.reco.timeout` | `300ms` | `SWIPREAD_RECO_TIMEOUT` | Délai de connexion et de réponse de la reco (fixé par le contrat) |
-| `swipread.feed.page-size` | `10` | `SWIPREAD_FEED_PAGE_SIZE` | Articles par page, et articles conservés lors d'une invalidation |
-| `swipread.feed.stock-size` | `50` | `SWIPREAD_FEED_STOCK_SIZE` | Taille maximale du stock Redis |
-| `swipread.feed.refill-threshold` | `20` | `SWIPREAD_FEED_REFILL_THRESHOLD` | Un remplissage est lancé quand il reste moins d'articles que ce seuil |
-| `swipread.sources.allow-local-feeds` | `false` | `SWIPREAD_SOURCES_ALLOW_LOCAL_FEEDS` | Lève la protection SSRF de la vérification des flux (adresses internes, ports autres que 80 et 443). `true` dans le profil `test` uniquement, pour les flux servis en local ; **jamais en production** |
+| `swipread.jwt.secret` | none (required) | `SWIPREAD_JWT_SECRET` | HMAC key that signs the JWTs, at least 32 characters |
+| `swipread.jwt.ttl` | `15m` | `SWIPREAD_JWT_TTL` | Access token lifetime |
+| `swipread.auth.refresh-ttl` | `30d` | `SWIPREAD_AUTH_REFRESH_TTL` | Refresh token lifetime, restarted at each renewal |
+| `swipread.auth.refresh-grace` | `10s` | `SWIPREAD_AUTH_REFRESH_GRACE` | How long a just-replaced refresh token is still accepted without rotation (concurrent tabs) |
+| `swipread.auth.refresh-cookie-secure` | `true` | `SWIPREAD_AUTH_REFRESH_COOKIE_SECURE` | `Secure` attribute of the refresh cookie. `false` in `dev` and `test` (plain HTTP); **always `true` in production** |
+| `swipread.cors.allowed-origins` | empty | `SWIPREAD_CORS_ALLOWED_ORIGINS` | Frontend origins allowed to call the API from a browser, comma-separated. `http://localhost:5173` in `dev` and `test` |
+| `swipread.reco.base-url` | `http://localhost:8081` | `SWIPREAD_RECO_URL` | Recommendation service URL (ignored with `mock-reco`) |
+| `swipread.reco.timeout` | `300ms` | `SWIPREAD_RECO_TIMEOUT` | Connect and read timeout towards the recommender (set by the contract) |
+| `swipread.feed.page-size` | `10` | `SWIPREAD_FEED_PAGE_SIZE` | Articles per page, and articles kept on invalidation |
+| `swipread.feed.stock-size` | `50` | `SWIPREAD_FEED_STOCK_SIZE` | Maximum size of a reader's stock in Redis |
+| `swipread.feed.refill-threshold` | `20` | `SWIPREAD_FEED_REFILL_THRESHOLD` | A refill starts when fewer articles than this remain |
+| `swipread.sources.allow-local-feeds` | `false` | `SWIPREAD_SOURCES_ALLOW_LOCAL_FEEDS` | Lifts the SSRF protection of the feed check (internal addresses, ports other than 80 and 443). `true` in the `test` profile only, for feeds served locally; **never in production** |
 
-Les valeurs du feed et le timeout viennent du contrat avec la reco. Il faut en discuter avec l'équipe reco avant de les changer.
+`application.yaml` reads `SWIPREAD_RECO_URL` explicitly for `swipread.reco.base-url`.
 
-Les durées de vie des clés Redis (6 h, 5 s, 30 j, 7 j) sont des constantes du contrat, dans `FeedStore` et `EventPublisher`.
+The feed sizes and the recommender timeout come from the contract with the recommendation team: discuss with them before changing them. The Redis key lifetimes (6 h, 5 s, 30 days, 7 days) are contract constants in `FeedStore` and `EventStreamPublisher`.
 
-## Réglages Spring notables
+## Notable Spring settings
 
-| Propriété | Valeur | Pourquoi |
+| Property | Value | Why |
 | --- | --- | --- |
-| `spring.datasource.hikari.connection-init-sql` | `SET TIME ZONE 'UTC'` | Les bornes de partition de `app.events` sont interprétées dans le fuseau de la session |
-| `spring.jpa.hibernate.ddl-auto` | `validate` | Le schéma appartient à Flyway |
-| `spring.jpa.open-in-view` | `false` | Pas de requête SQL pendant la sérialisation JSON |
-| `spring.jackson.default-property-inclusion` | `non_null` | Les champs `null` sont omis des réponses (et des messages du stream) |
-| `spring.threads.virtual.enabled` | `true` | Threads virtuels pour les requêtes HTTP |
-| `spring.docker.compose.enabled` | `false` (`true` en dev) | Docker Compose uniquement en développement |
-| `management.endpoints.web.exposure.include` | `health,info` | Seuls ces endpoints Actuator sont exposés |
+| `spring.datasource.hikari.connection-init-sql` | `SET TIME ZONE 'UTC'` | Partition bounds of `app.events` are interpreted in the session time zone |
+| `spring.jpa.hibernate.ddl-auto` | `validate` | The schema belongs to Flyway |
+| `spring.jpa.open-in-view` | `false` | No SQL during JSON serialisation |
+| `spring.jackson.default-property-inclusion` | `non_null` | `null` fields are left out of responses and stream messages |
+| `spring.threads.virtual.enabled` | `true` | Virtual threads for HTTP requests |
+| `spring.docker.compose.enabled` | `false` (`true` in `dev`) | Docker Compose in development only |
+| `management.endpoints.web.exposure.include` | `health,info` | Only these Actuator endpoints are exposed |
 
-## Profils
+## Profiles
 
-| Profil | Fichier | Contenu |
+| Profile | File | Content |
 | --- | --- | --- |
-| `dev` | `application-dev.yaml` | Docker Compose actif (`start-only`), clé JWT de dev, migrations + `db/seed` + `db/dev-data` |
-| `test` | `application-test.yaml` | Clé JWT de test, migrations + `db/seed` |
-| `mock-reco` | aucun | Active `MockRecommendationClient` ; inclus automatiquement par `dev` et `test` |
+| `dev` | `application-dev.yaml` | Docker Compose (`start-only`), dev JWT key, CORS for the web dev server, non-`Secure` cookie, migrations + `db/seed` + `db/dev-data` |
+| `test` | `application-test.yaml` | Test JWT key, CORS for the web dev server, non-`Secure` cookie, local feeds allowed, migrations + `db/seed` |
+| `mock-reco` | none | Enables `MockRecommendationClient` and `MockEventsConsumer`; included by `dev` and `test` |
 
-## Mise en production : check-list
+The development and test JWT keys are committed on purpose: they are only used by these profiles and protect nothing.
 
-On démarre sans aucun profil et on fournit au minimum :
+## Production checklist
 
-| Variable | Exemple |
+Start without any profile and provide at least:
+
+| Variable | Example |
 | --- | --- |
 | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://db:5432/swipread` |
-| `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | compte propriétaire des schémas `app` et `reco` (Flyway crée l'extension `vector` et les schémas) |
-| `SPRING_DATA_REDIS_HOST` / `SPRING_DATA_REDIS_PORT` (+ `SPRING_DATA_REDIS_PASSWORD`) | instance Redis ≥ 6.2 (`LPOP` avec compteur, `XADD MINID`) |
-| `SWIPREAD_JWT_SECRET` | 32 caractères aléatoires ou plus, par exemple `openssl rand -base64 48` |
-| `SWIPREAD_RECO_URL` | URL interne du service de reco |
-| `SWIPREAD_CORS_ALLOWED_ORIGINS` | origine(s) du frontend web, par exemple `https://app.swipread.fr` ; sans elle, le navigateur bloque tous les appels. CORS autorise les cookies (`Access-Control-Allow-Credentials`), d'où des origines explicites, jamais `*`. Le front et l'API doivent être sur le même site (par exemple `app.swipread.fr` et `api.swipread.fr`) : le cookie `SameSite=Strict` n'est pas envoyé entre deux sites différents |
+| `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | Owner of the `app` and `reco` schemas (Flyway creates the `vector` extension and the schemas) |
+| `SPRING_DATA_REDIS_HOST`, `SPRING_DATA_REDIS_PORT` (+ `SPRING_DATA_REDIS_PASSWORD`) | Redis ≥ 6.2 (`LPOP` with a count, `XADD … MINID`, `SMISMEMBER`) |
+| `SWIPREAD_JWT_SECRET` | 32 random characters or more, e.g. `openssl rand -base64 48` |
+| `SWIPREAD_RECO_URL` | Internal URL of the recommendation service |
+| `SWIPREAD_CORS_ALLOWED_ORIGINS` | The web app's origin, e.g. `https://app.example.com`. CORS allows credentials (the refresh cookie), so origins must be explicit, never `*` |
 
-À vérifier aussi :
+Also check:
 
-- **Premier administrateur.** Le compte `admin@swipread.dev` n'existe qu'en dev et en test. En production, promouvoir un compte existant : `UPDATE app.users SET role = 'ADMIN' WHERE email = '…'`, puis se reconnecter.
-
-- **Swagger.** Swagger UI et `/v3/api-docs` sont publics et actifs par défaut. Les couper si besoin avec `SPRINGDOC_API_DOCS_ENABLED=false` et `SPRINGDOC_SWAGGER_UI_ENABLED=false`.
-- **Fuseau.** Le fuseau de la JVM n'a pas d'impact : les dates sont manipulées en `Instant` et les connexions SQL sont en UTC.
-- **Plusieurs instances.** Rien n'est conservé en mémoire entre deux requêtes, et le verrou de remplissage est dans Redis. Le job de partitions utilise `CREATE TABLE IF NOT EXISTS`, ce qui le rend sans risque s'il tourne sur toutes les instances.
-- **Droits de la reco.** La migration V5 crée le rôle de groupe `swipread_reco` (lecture seule sur `app` sans les colonnes sensibles de `app.users`, écriture sur `reco`, détail dans [la base de données](database.md#points-à-connaître)). Il faut l'autorisation `CREATEROLE` pour l'utilisateur de migration ; sinon, un administrateur exécute d'abord `CREATE ROLE swipread_reco NOLOGIN`. Créer ensuite l'utilisateur de la reco, avec un mot de passe qui ne doit pas figurer dans le dépôt :
+- **Same site.** The web app and the API must share a registrable domain (`app.example.com` and `api.example.com`): the refresh cookie is `SameSite=Strict` and is not sent across sites.
+- **HTTPS.** Keep `SWIPREAD_AUTH_REFRESH_COOKIE_SECURE=true` (the default) and terminate TLS in front of the API.
+- **First administrator.** `admin@swipread.dev` only exists in `dev` and `test`. In production, promote an existing account: `UPDATE app.users SET role = 'ADMIN' WHERE email = '…'`. It takes effect at the account's next token renewal (15 minutes at most).
+- **Swagger.** Swagger UI and `/v3/api-docs` are public by default. Turn them off if needed with `SPRINGDOC_API_DOCS_ENABLED=false` and `SPRINGDOC_SWAGGER_UI_ENABLED=false`.
+- **Time zone.** The JVM time zone has no effect: dates are handled as `Instant` and SQL sessions run in UTC.
+- **Several instances.** Nothing is kept in memory between requests. The refill lock is in Redis, the outbox relay uses `FOR UPDATE SKIP LOCKED`, and the partition job uses `CREATE TABLE IF NOT EXISTS`: all of them are safe on every instance.
+- **Recommender database access.** Migration V5 creates the group role `swipread_reco` (read-only on `app` without the sensitive columns of `app.users`, read-write on `reco`, see [Database](database.md#recommender-role)). The migration user needs `CREATEROLE`; otherwise an administrator runs `CREATE ROLE swipread_reco NOLOGIN` first. Then create the login role used by the recommender, with a password that must not be committed:
 
   ```sql
   CREATE ROLE reco_service LOGIN PASSWORD '…' IN ROLE swipread_reco;
   ```
+
+A tested container image example is in [Deployment](deployment.md).

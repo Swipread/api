@@ -1,15 +1,27 @@
-# Schéma de la base de données
+# Database
 
-Une seule base PostgreSQL avec l'extension pgvector, découpée en deux schémas :
+One PostgreSQL 17 database with the pgvector extension, split into two schemas:
 
-- `app` : données métier, écrites par le backend, l'ingestion et l'admin ;
-- `reco` : données internes de l'algo de recommandation.
+- `app`: business data, written by the API, the ingestion and admins;
+- `reco`: the recommendation service's internal data.
 
-Source de vérité : les migrations Flyway `src/main/resources/db/migration` (V1 = DDL du [contrat](Contrat%20backend%20reco.md), V2 = partition par défaut des événements, V3 = rôle des utilisateurs, V4 = date d'ouverture pour l'historique, V5 = rôle PostgreSQL de la reco, V6 = outbox du stream des événements, V7 = refresh tokens). Ce document doit suivre toute nouvelle migration.
+Source of truth: the Flyway migrations in `src/main/resources/db/migration`. Keep this page in sync with every new migration.
 
-## Diagramme
+| Migration | Content |
+| --- | --- |
+| V1 | Schema from the backend / recommender contract (tables, indexes, the October 2026 partition of `app.events`) |
+| V2 | `app.events_default` partition |
+| V3 | `app.users.role` (`READER` or `ADMIN`) |
+| V4 | `app.user_articles.opened_at` and its index, backfilled from `app.events` |
+| V5 | `swipread_reco` group role and its privileges |
+| V6 | `app.event_outbox` |
+| V7 | `app.refresh_tokens` |
 
-Les noms d'entité s'écrivent `schéma_table` (Mermaid n'accepte pas le point). Les traits pleins sont des clés étrangères ; les pointillés sont des liens logiques sans contrainte en base.
+Repeatable migrations load data: `db/seed` (8 topics and the `admin@swipread.dev` account; `dev` and `test` profiles) and `db/dev-data` (300 sample articles; `dev` only).
+
+## Diagram
+
+Entity names are written `schema_table` (Mermaid does not accept dots). Solid lines are foreign keys; dotted lines are logical links without a constraint.
 
 ```mermaid
 erDiagram
@@ -18,33 +30,29 @@ erDiagram
         text email UK
         text password_hash "bcrypt"
         text display_name
-        text locale "défaut fr-FR"
+        text locale "default fr-FR"
         timestamptz created_at
-        text role "READER ou ADMIN (V3)"
+        text role "READER or ADMIN (V3)"
     }
-
     app_topics {
         serial id PK
         text slug UK
         text label
     }
-
     app_user_topics {
         text user_id PK, FK
         int topic_id PK, FK
         timestamptz created_at
     }
-
     app_sources {
         serial id PK
         text name
         text site_url
         text feed_url UK
         text language
-        text license "conditions de réutilisation"
+        text license "nullable"
         boolean active
     }
-
     app_articles {
         text id PK "a_..."
         int source_id FK
@@ -57,18 +65,16 @@ erDiagram
         int word_count
         timestamptz published_at
         timestamptz ingested_at
-        vector embedding "vector(384), nullable, non mappé par le backend"
+        vector embedding "vector(384), nullable, not mapped by the API"
     }
-
     app_article_topics {
         text article_id PK, FK
         int topic_id PK, FK
         real confidence
     }
-
     app_events {
-        text event_id PK "e_..., généré par le front"
-        timestamptz occurred_at PK "clé de partition"
+        text event_id PK "e_..., client-generated"
+        timestamptz occurred_at PK "partition key"
         text user_id
         text session_id
         text type
@@ -78,7 +84,6 @@ erDiagram
         jsonb payload
         timestamptz received_at
     }
-
     app_user_articles {
         text user_id PK, FK
         text article_id PK, FK
@@ -90,89 +95,110 @@ erDiagram
         timestamptz hidden_at "nullable"
         timestamptz opened_at "nullable (V4)"
     }
-
+    app_event_outbox {
+        bigserial id PK
+        text message "JSON published on the stream"
+        timestamptz created_at
+    }
+    app_refresh_tokens {
+        uuid id PK
+        text user_id FK
+        uuid family_id
+        text token_hash UK "SHA-256"
+        timestamptz created_at
+        timestamptz expires_at
+        timestamptz revoked_at "nullable"
+        uuid replaced_by FK "nullable"
+    }
     reco_user_profiles {
         text user_id PK
         vector embedding "vector(384)"
         int events_count
         timestamptz updated_at
     }
-
     reco_model_runs {
         serial id PK
-        text version "ex. content-v1"
+        text version "e.g. content-v1"
         timestamptz started_at
         timestamptz finished_at "nullable"
         jsonb metrics "nullable"
     }
 
-    app_users ||--o{ app_user_topics : "choisit (cascade)"
-    app_topics ||--o{ app_user_topics : "est choisi"
-    app_sources ||--o{ app_articles : "publie"
-    app_articles ||--o{ app_article_topics : "est classé (cascade)"
-    app_topics ||--o{ app_article_topics : "classe"
-    app_users ||--o{ app_user_articles : "interagit (cascade)"
-    app_articles ||--o{ app_user_articles : "agrégat (cascade)"
-    app_users ||..o{ app_events : "user_id, sans FK"
-    app_articles ||..o{ app_events : "article_id, sans FK"
-    app_users ||..o| reco_user_profiles : "user_id, sans FK"
+    app_users ||--o{ app_user_topics : "chooses (cascade)"
+    app_topics ||--o{ app_user_topics : "is chosen"
+    app_sources ||--o{ app_articles : "publishes"
+    app_articles ||--o{ app_article_topics : "is tagged (cascade)"
+    app_topics ||--o{ app_article_topics : "tags"
+    app_users ||--o{ app_user_articles : "interacts (cascade)"
+    app_articles ||--o{ app_user_articles : "aggregate (cascade)"
+    app_users ||--o{ app_refresh_tokens : "sessions (cascade)"
+    app_users ||..o{ app_events : "user_id, no FK"
+    app_articles ||..o{ app_events : "article_id, no FK"
+    app_users ||..o| reco_user_profiles : "user_id, no FK"
 ```
 
 ## Tables
 
-| Table | Écrite par | Contenu |
+| Table | Written by | Content |
 | --- | --- | --- |
-| `app.users` | backend | Comptes, langue préférée, rôle (`READER` ou `ADMIN`, migration V3) |
-| `app.topics` | admin (seed en dev) | Thèmes proposés à l'onboarding |
-| `app.user_topics` | backend | Thèmes choisis par chaque utilisateur (`PUT /v1/me/topics`) |
-| `app.sources` | admin | Flux RSS et APIs ingérés, avec leur licence |
-| `app.articles` | ingestion | Métadonnées, résumé, embedding |
-| `app.article_topics` | ingestion | Thèmes détectés par article, avec un score de confiance |
-| `app.events` | backend | Historique brut des événements (`POST /v1/events`), partitionné par mois |
-| `app.refresh_tokens` | backend | Refresh tokens (V7), hachés en SHA-256 : famille (une connexion sur un appareil), expiration glissante, révocation et remplaçant ; supprimés avec le compte, purgés chaque nuit un jour après expiration ; inaccessibles au rôle `swipread_reco` |
-| `app.event_outbox` | backend | Messages en attente de publication sur le stream `events` (V6), supprimés une fois publiés ; interne au backend, inaccessible au rôle `swipread_reco` |
-| `app.user_articles` | backend | État agrégé par couple utilisateur/article : temps passé, scroll max, like, sauvegarde, masquage, dernière ouverture |
-| `reco.user_profiles` | reco | Vecteur de goûts de chaque utilisateur |
-| `reco.model_runs` | reco | Historique des entraînements et de leurs métriques |
+| `app.users` | API | Accounts, preferred locale, role |
+| `app.topics` | admins (seeded in `dev`/`test`) | Topics offered at onboarding |
+| `app.user_topics` | API | Topics chosen by each reader |
+| `app.sources` | admins | Ingested RSS/Atom feeds, with their reuse licence and status |
+| `app.articles` | ingestion | Metadata, summary, word count, embedding |
+| `app.article_topics` | ingestion | Topics detected for each article, with a confidence score |
+| `app.events` | API | Raw event history (`POST /v1/events`), partitioned by month |
+| `app.user_articles` | API | Per reader and article: dwell time, max scroll, like, save, hide, latest opening |
+| `app.event_outbox` | API | Stream messages waiting to be published, deleted once published; internal |
+| `app.refresh_tokens` | API | Hashed refresh tokens with their family, expiry, revocation and replacement; internal |
+| `reco.user_profiles` | recommender | Each reader's taste vector |
+| `reco.model_runs` | recommender | Training runs and their metrics |
 
-`app.events` est la source de vérité : `app.user_articles` et `reco.user_profiles` peuvent être recalculés à partir d'elle.
+`app.events` is the source of truth: `app.user_articles` and `reco.user_profiles` can be rebuilt from it.
 
-## Points à connaître
+## Foreign keys and deletion
 
-**Clés étrangères et suppression**
-- `ON DELETE CASCADE` : supprimer un utilisateur supprime ses `user_topics` et `user_articles` ; supprimer un article supprime ses `article_topics` et `user_articles`.
-- `app.events` n'a aucune clé étrangère, volontairement : l'insertion reste rapide et l'historique survit à la suppression d'un article. La suppression d'un compte (`DELETE /v1/me`) efface explicitement ses événements (`DELETE FROM app.events WHERE user_id = …`, via `events_user_idx`).
-- `reco.user_profiles.user_id` n'a pas non plus de clé étrangère vers `app.users`.
+- `ON DELETE CASCADE`: deleting a user deletes their `user_topics`, `user_articles` and `refresh_tokens`; deleting an article deletes its `article_topics` and `user_articles`.
+- `app.events` has no foreign key on purpose: inserts stay fast and the history survives an article's deletion. Account deletion removes the user's events explicitly (`DELETE FROM app.events WHERE user_id = …`, served by `events_user_idx`).
+- `reco.user_profiles.user_id` has no foreign key to `app.users` either; the recommender erases it on the `user_deleted` message.
+- `app.refresh_tokens.replaced_by` points to another token, `ON DELETE SET NULL`.
 
-**Partitionnement de `app.events`**
-- La table est partitionnée par plage sur `occurred_at`, une partition par mois (`app.events_AAAA_MM`).
-- La clé primaire `(event_id, occurred_at)` sert au dédoublonnage des renvois du front.
-- `app.events_default` (migration V2) reçoit les événements hors des partitions existantes au lieu de faire échouer l'insertion.
-- Au démarrage puis chaque nuit à 3 h UTC, le backend crée les partitions du mois courant et du mois suivant (`EventPartitionJob`).
-- Les connexions JDBC sont en UTC, donc les bornes de partition sont des minuits UTC.
+## Partitioning of `app.events`
 
-**Index**
+- Range partitions on `occurred_at`, one per month: `app.events_YYYY_MM`.
+- The primary key `(event_id, occurred_at)` deduplicates client resends.
+- `app.events_default` (V2) catches events outside existing partitions instead of failing the insert. If it already holds rows of a month, creating that month's partition fails: the job logs the error and the rows must be moved by hand.
+- At startup and every night at 03:00 UTC, `EventPartitionJob` creates the partitions of the current and next month.
+- JDBC sessions are in UTC, so partition bounds are UTC midnights.
 
-| Index | Usage |
+## Indexes
+
+| Index | Used by |
 | --- | --- |
-| `articles_published_idx` (`published_at DESC`) | Feed de repli : articles les plus récents |
-| `articles_embedding_idx` (HNSW, `vector_cosine_ops`) | Recherche des plus proches voisins par la reco (opérateur `<=>`) |
-| `events_user_idx` (`user_id, occurred_at DESC`) | Historique d'un utilisateur |
-| `user_articles_saved_idx` (`user_id, saved_at DESC`, partiel `saved_at IS NOT NULL`) | `GET /v1/me/saved` |
-| `user_articles_opened_idx` (`user_id, opened_at DESC`, partiel `opened_at IS NOT NULL`, V4) | `GET /v1/me/history` |
+| `articles_published_idx` (`published_at DESC`) | Fallback feed: most recent articles |
+| `articles_embedding_idx` (HNSW, `vector_cosine_ops`) | Nearest-neighbour search by the recommender (`<=>`) |
+| `events_user_idx` (`user_id, occurred_at DESC`) | A user's events, account deletion |
+| `user_articles_saved_idx` (`user_id, saved_at DESC`, partial `saved_at IS NOT NULL`) | `GET /v1/me/saved` |
+| `user_articles_opened_idx` (`user_id, opened_at DESC`, partial `opened_at IS NOT NULL`) | `GET /v1/me/history` |
+| `refresh_tokens_family_idx` (`family_id`) | Revoking a token family |
+| `refresh_tokens_expires_idx` (`expires_at`) | Nightly purge of expired tokens |
 
-**Côté backend**
-- Le backend ne mappe pas la colonne `embedding` : elle est écrite par l'ingestion et lue par la reco.
-- `app.events` et `app.user_articles` sont écrites en SQL (`JdbcTemplate`, `ON CONFLICT`). Le reste passe par JPA en `ddl-auto: validate`.
-- Données de seed : `db/seed` charge les thèmes et le compte `admin@swipread.dev` / `password123` (profils dev et test), `db/dev-data` charge 300 articles d'exemple (profil dev uniquement).
+## Access from the API
 
-**Rôles applicatifs** : il n'y a pas d'écran pour nommer un administrateur. En production : `UPDATE app.users SET role = 'ADMIN' WHERE email = '…'`, puis reconnexion de l'utilisateur.
+- The API never maps the `embedding` column: the ingestion writes it, the recommender reads it.
+- JPA (`ddl-auto: validate`) for accounts, topics, sources and articles; `JdbcTemplate` for events, per-article state, the outbox and refresh tokens.
 
-**Droits de la reco** (V5) : rôle de groupe `swipread_reco`, **sans connexion**.
+## Recommender role
 
-| Schéma | Droits |
+Migration V5 creates the group role `swipread_reco`, **without login**:
+
+| Schema | Privileges |
 | --- | --- |
-| `app` | `SELECT` sur toutes les tables, y compris celles créées plus tard par le backend (droits par défaut : futures migrations, partitions mensuelles de `app.events`). Sur `app.users`, seulement les colonnes `id`, `locale` et `created_at` : ni email, ni hash de mot de passe, ni nom affiché |
-| `reco` | Lecture et écriture sur les tables et séquences, création de tables (`CREATE` sur le schéma) |
+| `app` | `SELECT` on every table, including tables created later by the API (default privileges: future migrations, monthly partitions of `app.events`). On `app.users`, only `id`, `locale` and `created_at`: no email, password hash or display name. No access to `app.event_outbox` and `app.refresh_tokens` |
+| `reco` | Read-write on tables and sequences, and `CREATE` on the schema |
 
-L'utilisateur qui se connecte est créé par l'exploitation et rattaché à ce rôle (voir la [configuration](configuration.md#mise-en-production--check-list)). Un rôle PostgreSQL étant global au serveur, V5 échoue avec un message explicite si `swipread_reco` n'existe pas et que l'utilisateur de migration n'a pas le droit `CREATEROLE` : un administrateur doit alors le créer avant (`CREATE ROLE swipread_reco NOLOGIN`).
+The login role the recommender connects with is created by operations and joined to this group (see [Configuration](configuration.md#production-checklist)). A PostgreSQL role is global to the server: if `swipread_reco` does not exist and the migration user lacks `CREATEROLE`, V5 fails with an explicit message, and an administrator must run `CREATE ROLE swipread_reco NOLOGIN` first.
+
+## Promoting an administrator
+
+There is no endpoint for it: `UPDATE app.users SET role = 'ADMIN' WHERE email = '…'`. It takes effect at the account's next token renewal.

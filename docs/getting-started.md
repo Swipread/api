@@ -1,112 +1,126 @@
-# Prise en main
+# Getting started
 
-## Prérequis
+## Requirements
 
-- **JDK 25.** Maven est fourni par le wrapper (`./mvnw`), pas besoin de l'installer.
-- **Docker Desktop démarré.** Il sert à la base et à Redis en dev, et aux conteneurs des tests d'intégration.
-- Optionnel :
-  - IntelliJ IDEA ;
-  - [Bruno](https://www.usebruno.com/) ou Postman pour les scénarios de test ;
-  - Node.js pour lancer ces scénarios en ligne de commande.
+- **JDK 25.** Maven comes with the wrapper (`./mvnw`); no need to install it.
+- **Docker** running. It provides PostgreSQL and Redis in development and the containers of the integration tests.
+- Optional:
+  - IntelliJ IDEA (a shared run configuration is included);
+  - [Bruno](https://www.usebruno.com/) or Postman for the end-to-end scenarios;
+  - Node.js to run those scenarios from the command line.
 
-## Lancer l'API en local
+## Run the API locally
 
-Le profil **`dev`** est obligatoire. Il :
+The **`dev`** profile is required. It:
 
-- démarre PostgreSQL (`pgvector/pgvector:pg17`) et Redis (`redis:7.4`) via `compose.yaml` ;
-- fournit une clé JWT de développement ;
-- charge des données d'exemple : 8 thèmes et 300 articles ;
-- active le faux service de reco (profil `mock-reco`).
+- starts PostgreSQL (`pgvector/pgvector:pg17`) and Redis (`redis:7.4`) through `compose.yaml`;
+- provides a development JWT signing key;
+- loads sample data: 8 topics, 300 articles and an admin account;
+- enables the fake recommendation service (`mock-reco` profile);
+- allows browser calls from the web app's dev server, `http://localhost:5173`.
 
-**En ligne de commande**
+**Command line**
 
 ```bash
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-**Dans IntelliJ :** choisir la configuration partagée **ApiApplication (dev)**, définie dans `.run/`. Si tu utilises une autre configuration, mets `dev` dans *Active profiles*.
+**IntelliJ IDEA:** pick the shared **ApiApplication (dev)** run configuration (stored in `.run/`). With any other configuration, set `dev` in *Active profiles*.
 
-Une fois démarrée :
+Once started:
 
-| URL | Rôle |
+| URL | Purpose |
 | --- | --- |
-| http://localhost:8080/swagger-ui.html | Swagger UI, pour tester les endpoints à la main |
-| http://localhost:8080/v3/api-docs | Spec OpenAPI en JSON |
-| http://localhost:8080/actuator/health | État de l'application |
+| <http://localhost:8080/swagger-ui.html> | Swagger UI, to try the endpoints by hand |
+| <http://localhost:8080/v3/api-docs> | OpenAPI spec (JSON), used by the web app to generate its types |
+| <http://localhost:8080/actuator/health> | Health check |
 
-Pour appeler un endpoint protégé depuis Swagger :
+To call a protected endpoint from Swagger UI:
 
-1. Appeler `POST /v1/auth/register`.
-2. Copier `accessToken` dans le bouton *Authorize*.
+1. Call `POST /v1/auth/register` (or `login`).
+2. Paste the `accessToken` in the *Authorize* dialog.
 
-## Premier parcours à la main
+## A first session with curl
 
 ```bash
 H=http://localhost:8080
 TOKEN=$(curl -s -X POST $H/v1/auth/register -H 'Content-Type: application/json' \
-  -d '{"email":"moi@example.org","password":"password123","displayName":"Moi"}' | jq -r .accessToken)
+  -d '{"email":"me@example.org","password":"password123","displayName":"Me"}' | jq -r .accessToken)
 
 curl -s $H/v1/topics -H "Authorization: Bearer $TOKEN"
-curl -s -X PUT $H/v1/me/topics -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"topicIds":[1,2,3]}'
+curl -s -X PUT $H/v1/me/topics -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"topicIds":[1,2,3]}'
 curl -s $H/v1/feed -H "Authorization: Bearer $TOKEN" | jq '.items[] | {articleId, reason, requestId}'
 ```
 
-Le premier appel au feed renvoie des articles `reason: "fallback"`. Les suivants viennent du mock de reco, avec `reason: "explore"`. Pour comprendre pourquoi, voir [Architecture](architecture.md#le-feed).
+The first feed call returns `reason: "fallback"` articles. The next ones come from the mock recommender, with `reason: "explore"`. [Feed](features/feed.md) explains why.
 
-## Profils
+The access token lasts 15 minutes. To renew it, call `POST /v1/auth/refresh` with the `swipread_refresh` cookie set by `register` or `login` (with curl: `-c cookies.txt` on login, `-b cookies.txt` on refresh).
 
-| Profil | Rôle |
+## Profiles
+
+| Profile | Purpose |
 | --- | --- |
-| `dev` | Développement local : Docker Compose, clé JWT de dev, données d'exemple, compte admin, mock de reco |
-| `test` | Tests automatisés : Testcontainers, clé JWT de test, thèmes et compte admin seulement, mock de reco |
-| `mock-reco` | Remplace l'appel HTTP à la reco par un tirage aléatoire en base, et logge les messages du stream `events` (`Mock reco received …`). Inclus automatiquement par `dev` et `test` |
-| *(aucun)* | Production : tout vient des variables d'environnement, voir [Configuration](configuration.md) |
+| `dev` | Local development: Docker Compose, dev JWT key, sample data, admin account, mock recommender, CORS for `http://localhost:5173`, non-`Secure` refresh cookie |
+| `test` | Automated tests: Testcontainers, test JWT key, topics and admin account only, mock recommender, local feeds allowed for the source check |
+| `mock-reco` | Replaces the HTTP recommender with random picks from the database and logs the messages of the `events` stream (`Mock reco received …`). Included by `dev` and `test` |
+| *(none)* | Production: everything comes from environment variables, see [Configuration](configuration.md) |
 
-Compte administrateur des profils `dev` et `test` : `admin@swipread.dev` / `password123`.
+Admin account of the `dev` and `test` profiles: `admin@swipread.dev` / `password123`.
 
-Sans profil, l'application refuse de démarrer tant que la base, Redis et `SWIPREAD_JWT_SECRET` ne sont pas configurés. C'est voulu : on ne veut pas tourner par erreur avec la configuration de dev.
+Without a profile the application refuses to start until a database, Redis and `SWIPREAD_JWT_SECRET` are configured. This is deliberate: it never runs with development settings by mistake.
 
-## Accéder à la base et à Redis
+## Inspect the database and Redis
 
-Les ports sont attribués au hasard par Docker. Le plus simple est de passer par `docker compose` :
+Docker assigns random host ports. The simplest is to go through `docker compose`:
 
 ```bash
-docker compose ps                                                   # voir les ports
-docker compose exec postgres psql -U swipread -d swipread           # console SQL
-docker compose exec redis redis-cli                                 # console Redis
+docker compose ps                                          # see the ports
+docker compose exec postgres psql -U swipread -d swipread  # SQL console
+docker compose exec redis redis-cli                        # Redis console
 ```
 
-Quelques requêtes utiles :
+Useful queries:
 
 ```sql
-SELECT id, email, created_at FROM app.users ORDER BY created_at DESC LIMIT 5;
+SELECT id, email, role, created_at FROM app.users ORDER BY created_at DESC LIMIT 5;
 SELECT type, count(*) FROM app.events GROUP BY type;
 SELECT * FROM app.user_articles WHERE user_id = 'u_...';
 ```
 
-```
-LLEN feed:u_...                 # taille du stock
-LRANGE feed:u_... 0 9           # 10 prochains articles
-HGETALL feed:u_...:meta         # origine de chaque article du stock
-SCARD seen:u_...                # nombre d'articles déjà servis
-XREVRANGE events + - COUNT 5    # derniers messages publiés pour la reco
+```text
+LLEN feed:u_...                 # stock size
+LRANGE feed:u_... 0 9           # next 10 articles
+HGETALL feed:u_...:meta         # origin (requestId|reason) of each article in stock
+SCARD seen:u_...                # number of articles already served
+XREVRANGE events + - COUNT 5    # latest messages published for the recommender
+XINFO GROUPS events             # consumer groups (mock-reco in dev)
 ```
 
-## Arrêter et repartir de zéro
+## Stop and start from scratch
 
-Les conteneurs restent démarrés après l'arrêt de l'application (`lifecycle-management: start-only`), ce qui accélère le redémarrage.
+The containers keep running after the application stops (`lifecycle-management: start-only`), which makes restarts faster.
 
 ```bash
-docker compose down        # arrête les conteneurs (les données sont perdues, pas de volume)
+docker compose down        # stops the containers; data is lost (no volume)
 ```
 
-## Dépannage
+## Run the tests
 
-| Symptôme | Cause | Solution |
+```bash
+./mvnw test
+```
+
+Docker must be running: integration tests start their own PostgreSQL and Redis containers. See [Testing](testing.md), which also covers the Bruno and Postman scenarios.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
 | --- | --- | --- |
-| `Failed to configure a DataSource: 'url' attribute is not specified` | Lancement sans le profil `dev` | Activer le profil `dev`, voir plus haut |
-| Même erreur alors que le profil `dev` est actif | Conteneurs créés par une ancienne version de `compose.yaml` sans le label `org.springframework.boot.service-connection` | `docker compose up -d` pour les recréer, puis relancer |
-| `Cannot connect to the Docker daemon` | Docker Desktop arrêté | Démarrer Docker Desktop |
-| `Port 8080 was already in use` | Une autre instance tourne déjà | L'arrêter, ou lancer avec `--server.port=8089` |
-| `Could not resolve placeholder 'SWIPREAD_JWT_SECRET'` ou `Binding validation errors on swipread.jwt` | Secret JWT absent ou trop court (< 32 caractères) | Profil `dev`, ou définir `SWIPREAD_JWT_SECRET` |
-| Le feed ne renvoie que des articles `fallback` | Le mock de reco est actif, mais le stock ne s'est pas encore rempli, ou la vraie reco est injoignable | Rappeler le feed après une seconde ; vérifier les logs `Using fallback feed` |
+| `Failed to configure a DataSource: 'url' attribute is not specified` | Started without the `dev` profile | Enable the `dev` profile |
+| Same error with the `dev` profile | Containers created by an older `compose.yaml`, without the `org.springframework.boot.service-connection` label | `docker compose up -d` to recreate them, then restart |
+| `Cannot connect to the Docker daemon` | Docker is not running | Start Docker |
+| `Port 8080 was already in use` | Another instance is running | Stop it, or start with `-Dspring-boot.run.arguments=--server.port=8089` |
+| `Could not resolve placeholder 'SWIPREAD_JWT_SECRET'` or `Binding validation errors on swipread.jwt` | JWT secret missing or shorter than 32 characters | Use the `dev` profile, or set `SWIPREAD_JWT_SECRET` |
+| The feed only returns `fallback` articles | The stock has not been filled yet, or the real recommender is unreachable | Call the feed again after a second; look for `Using fallback feed` in the logs |
+| The web app gets CORS errors | It is not served from `http://localhost:5173`, or the API is not in the `dev` profile | See `swipread.cors.allowed-origins` in [Configuration](configuration.md) |

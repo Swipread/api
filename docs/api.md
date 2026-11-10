@@ -1,21 +1,20 @@
-# Swipread API — liste des endpoints (v1)
+# API reference (v1)
 
-Référence des échanges front ↔ backend. Les formats partagés avec la reco (recommandations, stream `events`, clés Redis) sont dans [Contrat backend reco.md](Contrat%20backend%20reco.md).
+Every endpoint the clients use: request, response, validation rules and errors. The formats shared with the recommendation service (recommendations, `events` stream, Redis keys) are in the backend / recommender contract and summarised in [Recommendation](features/recommendation.md).
 
-- Base URL en dev : `http://localhost:8080`
-- Spec OpenAPI : `GET /v3/api-docs` — Swagger UI : `/swagger-ui.html`
-- Scénarios de test exécutables (Bruno, Postman) : [Tests](testing.md#scénario-de-bout-en-bout-bruno--postman)
-- Fonctionnement interne du feed et des événements : [Architecture](architecture.md)
-- Retour au [sommaire](README.md)
+- Base URL in development: `http://localhost:8080`
+- OpenAPI spec: `GET /v3/api-docs`, Swagger UI: `/swagger-ui.html`
+- Executable scenarios (Bruno, Postman): [Testing](testing.md#end-to-end-scenarios-bruno-and-postman)
+- How the feed and events work internally: [Feed](features/feed.md), [Events](features/events.md)
 
 ## Conventions
 
-- JSON en camelCase, dates ISO 8601 UTC, IDs préfixés (`u_` utilisateur, `a_` article, `r_` lot de reco, `e_` événement).
-- Authentification : en-tête `Authorization: Bearer <accessToken>` sur tous les endpoints sauf `register`, `login`, la doc OpenAPI et `/actuator/health`.
-- Le `userId` n'est jamais envoyé par le front : il est lu dans le token.
-- CORS : les origines autorisées sont configurées par environnement (`swipread.cors.allowed-origins`, `http://localhost:5173` en dev). Méthodes `GET, POST, PUT, PATCH, DELETE` ; en-têtes `Authorization, Content-Type, X-Session-Id, X-Device`. Les requêtes préalables `OPTIONS` passent sans token.
-- Les réponses sont en `application/json`.
-- Erreurs au format ProblemDetail (RFC 9457), `Content-Type: application/problem+json` :
+- JSON in camelCase, ISO 8601 UTC dates, prefixed ids (`u_` user, `a_` article, `r_` recommendation batch, `e_` event, `s_` session).
+- Authentication: `Authorization: Bearer <accessToken>` on every endpoint except `register`, `login`, `refresh`, `logout` (which use the refresh cookie instead), the OpenAPI docs and `/actuator/health`.
+- The client never sends a `userId`: it is read from the token.
+- CORS: allowed origins are configured per environment (`swipread.cors.allowed-origins`, `http://localhost:5173` in development), with credentials allowed. Methods `GET, POST, PUT, PATCH, DELETE`; headers `Authorization, Content-Type, X-Session-Id, X-Device`. Preflight `OPTIONS` requests need no token.
+- Responses are `application/json`.
+- Errors are RFC 9457 `ProblemDetail` with `Content-Type: application/problem+json`:
 
 ```json
 {
@@ -27,34 +26,34 @@ Référence des échanges front ↔ backend. Les formats partagés avec la reco 
 }
 ```
 
-Le schéma `ProblemDetail` est déclaré dans la spec OpenAPI pour toutes les réponses 4xx : 400 sur tout endpoint qui reçoit des paramètres, 401 sur tout endpoint authentifié, et les autres codes (409…) là où ils peuvent se produire.
+The `ProblemDetail` schema is declared in the OpenAPI spec for every 4xx answer: 400 on any endpoint that takes input, 401 on any authenticated endpoint, 403 on admin routes, and the other codes (404, 409, 422) where they can happen.
 
-`errors` n'est présent que pour les erreurs de validation. `code` est le nom de la contrainte non respectée (`NotBlank`, `NotNull`, `Size`, `Email`, `Pattern`) : c'est sur `field` et `code` que les clients doivent s'appuyer pour afficher leur propre message. `message` est toujours en anglais, quels que soient l'en-tête `Accept-Language` et la langue du serveur.
+`errors` is only present on validation errors. `code` is the violated constraint (`NotBlank`, `NotNull`, `Size`, `Email`, `Pattern`): clients should rely on `field` and `code` to display their own message. `message` is always in English, whatever the `Accept-Language` header or the server's locale. `detail` is in English too.
 
-## Récapitulatif
+## Summary
 
-| Méthode | Chemin | Auth | Rôle |
+| Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| POST | `/v1/auth/register` | non | Créer un compte, renvoie un token |
-| POST | `/v1/auth/login` | non | Obtenir un token |
-| POST | `/v1/auth/refresh` | cookie | Nouvel access token (rotation du refresh token) |
-| POST | `/v1/auth/logout` | cookie | Révoquer le refresh token |
-| GET | `/v1/me` | oui | Profil et thèmes choisis |
-| PATCH | `/v1/me` | oui | Modifier le profil (`displayName`) |
-| DELETE | `/v1/me` | oui | Supprimer le compte et les données personnelles |
-| GET | `/v1/topics` | oui | Thèmes proposés à l'onboarding |
-| PUT | `/v1/me/topics` | oui | Remplacer les thèmes choisis |
-| GET | `/v1/feed` | oui | Page suivante du feed (10 articles) |
-| POST | `/v1/events` | oui | Envoyer un lot d'événements |
-| GET | `/v1/me/saved` | oui | Articles sauvegardés, paginés |
-| GET | `/v1/me/history` | oui | Historique de lecture (articles ouverts), paginé |
-| GET | `/v1/admin/topics` | admin | Thèmes avec nombre d'articles et de lecteurs |
-| POST | `/v1/admin/topics` | admin | Créer un thème |
-| PATCH | `/v1/admin/topics/{id}` | admin | Renommer un thème |
-| GET | `/v1/admin/sources` | admin | Sources ingérées |
-| POST | `/v1/admin/sources` | admin | Ajouter une source (flux vérifié) |
-| PATCH | `/v1/admin/sources/{id}` | admin | Activer ou désactiver une source |
-| DELETE | `/v1/admin/sources/{id}` | admin | Supprimer une source sans article |
+| POST | `/v1/auth/register` | — | Create an account; returns an access token and sets the refresh cookie |
+| POST | `/v1/auth/login` | — | Log in; same response |
+| POST | `/v1/auth/refresh` | cookie | New access token (refresh token rotation) |
+| POST | `/v1/auth/logout` | cookie | Revoke the refresh token |
+| GET | `/v1/me` | bearer | Profile and chosen topics |
+| PATCH | `/v1/me` | bearer | Update the profile (`displayName`) |
+| DELETE | `/v1/me` | bearer | Delete the account and personal data |
+| GET | `/v1/topics` | bearer | Topics offered at onboarding |
+| PUT | `/v1/me/topics` | bearer | Replace the chosen topics |
+| GET | `/v1/feed` | bearer | Next page of the feed (10 articles) |
+| POST | `/v1/events` | bearer | Send a batch of events |
+| GET | `/v1/me/saved` | bearer | Saved articles, paginated |
+| GET | `/v1/me/history` | bearer | Reading history (opened articles), paginated |
+| GET | `/v1/admin/topics` | admin | Topics with article and reader counts |
+| POST | `/v1/admin/topics` | admin | Create a topic |
+| PATCH | `/v1/admin/topics/{id}` | admin | Rename a topic |
+| GET | `/v1/admin/sources` | admin | Ingested sources |
+| POST | `/v1/admin/sources` | admin | Add a source (the feed is checked first) |
+| PATCH | `/v1/admin/sources/{id}` | admin | Activate or deactivate a source |
+| DELETE | `/v1/admin/sources/{id}` | admin | Delete a source that has no articles |
 
 ## Auth
 
@@ -64,28 +63,28 @@ Le schéma `ProblemDetail` est déclaré dans la spec OpenAPI pour toutes les r�
 { "email": "alice@example.org", "password": "password123", "displayName": "Alice", "locale": "fr-FR" }
 ```
 
-| Champ | Règle |
+| Field | Rule |
 | --- | --- |
-| email | requis, email valide, ≤ 254 caractères, normalisé en minuscules |
-| password | requis, 8 à 72 caractères |
-| displayName | requis, ≤ 50 caractères |
-| locale | optionnel, forme `fr-FR`, défaut `fr-FR` |
+| email | Required, valid email, ≤ 254 characters, stored in lowercase |
+| password | Required, 8 to 72 characters |
+| displayName | Required, ≤ 50 characters |
+| locale | Optional, `xx-XX` form, default `fr-FR` |
 
-Réponse **201** :
+Response **201**:
 
 ```json
 { "accessToken": "eyJhbGciOiJIUzI1NiJ9...", "tokenType": "Bearer", "expiresIn": 900, "userId": "u_01M4T6FKYMAGRVXAG4VNE8DQ5W" }
 ```
 
-`expiresIn` est la durée de validité de l'access token, **en secondes** (15 min). La réponse pose aussi le cookie du refresh token :
+`expiresIn` is the access token lifetime **in seconds** (15 minutes). The response also sets the refresh token cookie:
 
-```
+```text
 Set-Cookie: swipread_refresh=…; Path=/v1/auth; Max-Age=2592000; HttpOnly; SameSite=Strict; Secure
 ```
 
-`Secure` est absent en dev et en test (HTTP). Le cookie n'est jamais lisible en JavaScript ; le navigateur l'envoie seul aux routes `/v1/auth`, à condition que le front appelle avec `credentials: "include"`.
+`Secure` is absent in `dev` and `test` (plain HTTP). The cookie is never readable from JavaScript; the browser sends it to `/v1/auth` routes only, provided the client calls them with `credentials: "include"`.
 
-Erreurs : 400 validation, 409 email déjà utilisé.
+Errors: 400 validation, 409 email already registered.
 
 ### POST /v1/auth/login
 
@@ -93,30 +92,30 @@ Erreurs : 400 validation, 409 email déjà utilisé.
 { "email": "alice@example.org", "password": "password123" }
 ```
 
-Réponse **200** : même format que `register`. Erreurs : 400 validation, 401 identifiants invalides (même réponse que l'email existe ou non).
+Response **200**: same as `register`, cookie included. Errors: 400 validation, 401 invalid credentials (same answer, and the same response time, whether the email exists or not).
 
-L'access token est un JWT HS256 (`sub` = userId, claim `roles`), valable 15 min. Il est renouvelé par le refresh token, sans redemander le mot de passe.
+The access token is an HS256 JWT (`sub` = user id, `roles` claim), valid for 15 minutes. It is renewed with the refresh token, without asking for the password again.
 
 ### POST /v1/auth/refresh
 
-Sans corps ni en-tête `Authorization` : seulement le cookie `swipread_refresh` (`credentials: "include"`). Réponse **200** au format de `login` :
+No body and no `Authorization` header: only the `swipread_refresh` cookie (`credentials: "include"`). Response **200**, same format as `login`:
 
-- **Rotation.** Le cookie est remplacé par un nouveau refresh token, valable de nouveau 30 jours (durée glissante). L'ancien ne sert plus.
-- **Onglets simultanés.** Un token remplacé depuis moins de 10 s reçoit encore un access token, sans nouveau cookie (le navigateur a déjà le nouveau).
-- **Réutilisation.** Un token remplacé présenté plus tard est considéré comme volé : toute la session de cet appareil est révoquée, y compris le token le plus récent.
-- Le rôle est relu en base : une promotion `ADMIN` prend effet au renouvellement suivant.
+- **Rotation.** The cookie is replaced with a new refresh token, valid for 30 days again (sliding lifetime). The previous one stops working.
+- **Concurrent tabs.** A token replaced less than 10 seconds ago still gets an access token, without a new cookie (the browser already has the new one).
+- **Reuse.** A replaced token presented later is treated as stolen: the whole session of that device is revoked, including the newest token.
+- The role is read from the database: a promotion to `ADMIN` takes effect at the next renewal.
 
-Erreur **401** `"Invalid refresh token"` (cookie absent, inconnu, expiré, révoqué ou réutilisé), avec effacement du cookie : le front doit alors renvoyer vers la connexion.
+Error **401** `"Invalid refresh token"` (missing, unknown, expired, revoked or reused cookie), with the cookie cleared: the client must send the reader to the login screen.
 
 ### POST /v1/auth/logout
 
-Avec le cookie, sans `Authorization`. Révoque la session de l'appareil (la famille du refresh token) et efface le cookie. Réponse **204**, même sans cookie. L'access token en cours reste valable jusqu'à son expiration : le front doit l'oublier.
+With the cookie, without `Authorization`. Revokes the device's session (the refresh token's family) and clears the cookie. Response **204**, even without a cookie. The current access token stays valid until it expires: the client must forget it.
 
-## Profil et onboarding
+## Profile and onboarding
 
 ### GET /v1/me
 
-Réponse **200** :
+Response **200**:
 
 ```json
 {
@@ -130,7 +129,7 @@ Réponse **200** :
 }
 ```
 
-`role` vaut `READER` ou `ADMIN`. Seul `ADMIN` donne accès aux routes `/v1/admin/**` ; les autres reçoivent **403**. Le rôle est porté par le token : une promotion ne prend effet qu'à la connexion suivante.
+`role` is `READER` or `ADMIN`. Only `ADMIN` can call `/v1/admin/**`; other accounts get **403**. The role is also carried by the access token, so a change takes effect at the next token renewal (15 minutes at most).
 
 ### PATCH /v1/me
 
@@ -138,21 +137,22 @@ Réponse **200** :
 { "displayName": "Alice M." }
 ```
 
-`displayName` : requis, non vide, ≤ 50 caractères, espaces de début et de fin retirés. Réponse **200** : le profil complet, au format de `GET /v1/me`. Erreur 400 si `displayName` est invalide.
+`displayName`: required, not blank, ≤ 50 characters, trimmed. Response **200**: the full profile, as `GET /v1/me`. Error 400 if `displayName` is invalid.
 
 ### DELETE /v1/me
 
-Réponse **204** sans corps. Sont supprimés :
+Response **204**, no body. Deleted:
 
-- le compte, ses thèmes et son état par article (sauvegardés, likes, historique) ;
-- tous ses événements de `app.events` ;
-- ses clés Redis (`feed:{userId}*`, `seen:{userId}`).
+- the account, its topics and its per-article state (saved, likes, history);
+- all its events in `app.events`;
+- its refresh tokens;
+- its Redis keys (`feed:{userId}*`, `seen:{userId}`).
 
-La reco est prévenue par un message `user_deleted` sur le stream `events` et efface ses propres données. Le token du compte est ensuite refusé (**401**) : le front doit l'oublier et revenir à l'écran de connexion. L'email peut resservir pour une nouvelle inscription.
+The recommendation service is told through a `user_deleted` message on the `events` stream and erases its own data. The account's access token is refused afterwards (**401**): the client must forget it and go back to the login screen. The email can be used again to sign up.
 
 ### GET /v1/topics
 
-Réponse **200**, triée par libellé :
+Response **200**, sorted by label:
 
 ```json
 [{ "id": 4, "slug": "economy", "label": "Économie" }, { "id": 1, "slug": "tech", "label": "Tech" }]
@@ -160,26 +160,26 @@ Réponse **200**, triée par libellé :
 
 ### PUT /v1/me/topics
 
-Remplace l'ensemble des thèmes de l'utilisateur.
+Replaces the reader's topics.
 
 ```json
 { "topicIds": [1, 2, 3] }
 ```
 
-`topicIds` : 3 à 50 IDs (US3). Réponse **200** : la liste des thèmes enregistrés (même format que `GET /v1/topics`). Erreur 400 si un ID est inconnu (`"detail": "Unknown topic ids: [9999]"`) ou s'il y a moins de 3 IDs (`errors[0].field` vaut `topicIds`).
+`topicIds`: 3 to 50 ids. Response **200**: the saved topics (same format as `GET /v1/topics`). Error 400 if an id is unknown (`"detail": "Unknown topic ids: [9999]"`) or if there are fewer than 3 ids (`errors[0].field` is `topicIds`).
 
-Après l'enregistrement, le stock du feed, calculé sur les anciens thèmes, est vidé (US4). Le `GET /v1/feed` suivant sert sa première page par le repli sur les nouveaux thèmes, puis la reco reprend en arrière-plan. Les articles déjà servis restent exclus. Une requête refusée (400) ne vide rien.
+After saving, the feed stock, computed from the previous topics, is emptied. The next `GET /v1/feed` serves its first page from the fallback feed on the new topics, then the recommender takes over in the background. Articles already served stay excluded. A rejected request (400) empties nothing.
 
 ## Feed
 
 ### GET /v1/feed
 
-| En-tête optionnel | Rôle |
+| Optional header | Purpose |
 | --- | --- |
-| `X-Session-Id` | Session en cours, transmise à la reco (`context.sessionId`) |
-| `X-Device` | `mobile` ou `desktop`, transmis à la reco |
+| `X-Session-Id` | Current session, forwarded to the recommender (`context.sessionId`) |
+| `X-Device` | `mobile` or `desktop`, forwarded to the recommender |
 
-Réponse **200** :
+Response **200**:
 
 ```json
 {
@@ -191,7 +191,7 @@ Réponse **200** :
       "url": "https://…",
       "imageUrl": "https://…",
       "author": "…",
-      "sourceName": "Le Monde",
+      "sourceName": "Le Journal Tech",
       "language": "fr",
       "wordCount": 850,
       "publishedAt": "2026-10-12T08:00:00Z",
@@ -206,19 +206,19 @@ Réponse **200** :
 }
 ```
 
-- Jusqu'à 10 articles par appel ; chaque appel consomme la page (pas de retour en arrière).
-- `requestId` et `reason` sont à recopier dans les événements de l'article. Pour un article servi par le feed de repli, les deux valent `fallback`.
-- `position` est l'index dans la page (à partir de 0).
-- `topics` : thèmes détectés pour l'article, du plus sûr au moins sûr ; liste vide si l'ingestion n'en a détecté aucun. Pour une pastille unique, prendre le premier.
-- `liked` et `saved` : état de l'article pour l'utilisateur courant, toujours présents.
-- Les champs `null` sont omis (`imageUrl`, `author` notamment).
-- Premier appel d'un nouvel utilisateur : la page vient du feed de repli ; les suivantes viennent de la reco une fois le stock rempli en arrière-plan.
+- Up to 10 articles per call; each call consumes them (there is no going back).
+- `requestId` and `reason` must be copied into the article's events. For an article served by the fallback feed, both are `fallback`.
+- `position` is the index in the page, from 0.
+- `topics`: topics detected for the article, most confident first; empty when the ingestion found none.
+- `liked` and `saved`: the current reader's state for the article, always present.
+- `null` fields are omitted (`imageUrl`, `author` in particular).
+- A new reader's first call is served by the fallback feed; the next ones come from the recommender once the stock is filled in the background.
 
-## Événements
+## Events
 
 ### POST /v1/events
 
-Envoi toutes les 5 secondes, dès 20 événements, ou à la fermeture de l'app.
+Clients send events every 5 seconds, as soon as 20 are queued, and when the app closes.
 
 ```json
 {
@@ -237,46 +237,46 @@ Envoi toutes les 5 secondes, dès 20 événements, ou à la fermeture de l'app.
 }
 ```
 
-| Champ | Règle |
+| Field | Rule |
 | --- | --- |
-| sessionId | requis, ≤ 64 caractères |
-| events | 1 à 100 événements |
-| eventId | requis, généré par le front (UUID ou ULID), sert au dédoublonnage |
+| sessionId | Required, ≤ 64 characters |
+| events | 1 to 100 events |
+| eventId | Required, ≤ 64 characters, generated by the client (UUID or ULID), used for deduplication |
 | type | `impression`, `view`, `open`, `read`, `like`, `unlike`, `save`, `unsave`, `share`, `hide` |
-| articleId | requis |
-| requestId | optionnel, recopié depuis le feed |
-| position | optionnel, ≥ 0 |
-| occurredAt | requis, pas plus d'un jour dans le futur |
+| articleId | Required, ≤ 64 characters |
+| requestId | Optional, ≤ 64 characters, copied from the feed |
+| position | Optional, ≥ 0 |
+| occurredAt | Required, at most one day in the future |
 
-| type | payload |
+| Type | Payload |
 | --- | --- |
-| view | `dwellMs` requis (0 à 86 400 000) |
-| read | `readMs` requis (0 à 86 400 000), `scrollDepth` optionnel (0 à 1) |
-| share | `channel` requis |
-| hide | `reason` optionnel (texte) |
-| autres | aucun |
+| view | `dwellMs` required (0 to 86,400,000) |
+| read | `readMs` required (0 to 86,400,000), `scrollDepth` optional (0 to 1) |
+| share | `channel` required (non-blank string) |
+| hide | `reason` optional (string) |
+| others | none |
 
-Réponse **202** :
+Response **202**:
 
 ```json
 { "accepted": 1, "duplicates": 0 }
 ```
 
-- Un `eventId` déjà reçu (même `occurredAt`) est ignoré et compté dans `duplicates` : renvoyer un lot après une erreur réseau est sans risque.
-- Un payload invalide rejette tout le lot en 400 (`"detail": "Event e_01J9X (read): scrollDepth must be between 0 and 1"`).
-- `like`, `save`, `share`, `hide` et un `read` complet : `scrollDepth > 0.8`, ou `readMs` ≥ 60 % du temps de lecture estimé (`wordCount` / 230 mots par minute) renouvellent le stock du feed (les 10 prochains articles sont conservés). Exemple : pour un article de 850 mots (3 min 42 s estimées), un `read` est fort à partir de `readMs` = 133 044.
-- `unsave` retire l'article des sauvegardés, sur le modèle de `unlike`. Ni `unlike` ni `unsave` ne renouvellent le stock.
+- An `eventId` already received (with the same `occurredAt`) is ignored and counted in `duplicates`: resending a batch after a network error is safe.
+- One invalid event rejects the whole batch with 400 (`"detail": "Event e_01J9X (read): scrollDepth must be between 0 and 1"`).
+- `like`, `save`, `share`, `hide` and a complete `read` (`scrollDepth > 0.8`, or `readMs` ≥ 60 % of the estimated reading time at 230 words per minute) renew the reader's feed stock, keeping the next 10 articles. Example: for an 850-word article (3 min 42 s estimated), a `read` is strong from `readMs` = 133,044.
+- `unsave` removes the article from the saved list, like `unlike` removes a like. Neither renews the stock.
 
-## Articles sauvegardés
+## Saved articles and history
 
 ### GET /v1/me/saved
 
-| Paramètre | Règle |
+| Parameter | Rule |
 | --- | --- |
-| limit | 1 à 100, défaut 20 |
-| cursor | optionnel, valeur `nextCursor` de la page précédente |
+| limit | 1 to 100, default 20 |
+| cursor | Optional, the `nextCursor` of the previous page |
 
-Réponse **200**, du plus récemment sauvegardé au plus ancien, articles masqués (`hide`) exclus :
+Response **200**, most recently saved first, hidden articles excluded:
 
 ```json
 {
@@ -285,15 +285,11 @@ Réponse **200**, du plus récemment sauvegardé au plus ancien, articles masqu�
 }
 ```
 
-`article` a la même forme que les champs d'article de `GET /v1/feed`, avec `id` au lieu de `articleId`. `liked` indique si l'article est aussi aimé.
-
-`nextCursor` est absent sur la dernière page. Erreur 400 si le curseur est invalide. Pour retirer un article des sauvegardés, envoyer un événement `unsave`.
+`article` has the article fields of `GET /v1/feed`, with `id` instead of `articleId`. `liked` tells whether the article is also liked. `nextCursor` is absent on the last page. Error 400 on an invalid cursor. To remove an article, send an `unsave` event: there is no delete endpoint.
 
 ### GET /v1/me/history
 
-Mêmes paramètres que `GET /v1/me/saved` (`limit` de 1 à 100, défaut 20 ; `cursor`).
-
-Réponse **200**, de l'article ouvert le plus récemment au plus ancien :
+Same parameters as `GET /v1/me/saved`. Response **200**, most recently opened first:
 
 ```json
 {
@@ -302,25 +298,25 @@ Réponse **200**, de l'article ouvert le plus récemment au plus ancien :
 }
 ```
 
-- Un article entre dans l'historique dès un événement `open` ou `read`. Les cartes seulement affichées ou défilées (`impression`, `view`) n'y figurent pas.
-- `readAt` est la date de la **dernière** ouverture : un article rouvert remonte en tête, sans doublon.
-- Les articles masqués (`hide`) sont exclus.
-- Le regroupement « Aujourd'hui » / « Cette semaine » est laissé au front, à partir de `readAt`.
+- An article enters the history with an `open` or `read` event. Cards that were only shown or scrolled past (`impression`, `view`) are not in it.
+- `readAt` is the **latest** opening: a reopened article moves back to the top, without duplicates.
+- Hidden articles are excluded.
+- Grouping by day is left to the client.
 
 ## Administration
 
-Réservé au rôle `ADMIN` (champ `role` de `GET /v1/me`). Un lecteur reçoit **403**.
+`ADMIN` role only (the `role` field of `GET /v1/me`). Readers get **403**.
 
 ### GET /v1/admin/topics
 
-Réponse **200**, triée par libellé :
+Response **200**, sorted by label:
 
 ```json
 [{ "id": 1, "slug": "tech", "label": "Tech", "articleCount": 128, "readerCount": 42 }]
 ```
 
-- `articleCount` : articles associés au thème par l'ingestion (colonne « Articles » du wireframe).
-- `readerCount` : lecteurs qui ont choisi ce thème (colonne « Lecteurs intéressés »).
+- `articleCount`: articles tagged with the topic by the ingestion.
+- `readerCount`: readers who chose the topic.
 
 ### POST /v1/admin/topics
 
@@ -328,9 +324,9 @@ Réponse **200**, triée par libellé :
 { "label": "Jeux vidéo" }
 ```
 
-`label` : requis, ≤ 50 caractères. Le `slug` est tiré du libellé (minuscules, accents retirés, tirets) : `jeux-video`. Réponse **201** au format de `GET /v1/admin/topics`, compteurs à 0. Le thème est aussitôt proposé à l'onboarding.
+`label`: required, ≤ 50 characters. The `slug` is derived from the label (lowercase, accents removed, non-alphanumerics replaced by dashes): `jeux-video`. Response **201** in the `GET /v1/admin/topics` format, with zero counts. The topic is offered at onboarding right away.
 
-Erreurs : **409** si un thème a déjà ce slug (`"Jeux Video"` et `"jeux vidéo"` donnent le même), **400** si le libellé est vide ou ne contient aucune lettre ni chiffre.
+Errors: **409** if a topic already has this slug (`"Jeux Video"` and `"jeux vidéo"` give the same one), **400** if the label is blank or contains no letter or digit.
 
 ### PATCH /v1/admin/topics/{id}
 
@@ -338,39 +334,41 @@ Erreurs : **409** si un thème a déjà ce slug (`"Jeux Video"` et `"jeux vidéo
 { "label": "Jeux" }
 ```
 
-Change le libellé seulement : le `slug` reste celui de la création, car la reco l'utilise dans les clés `fallback:{slug}`. Réponse **200** au format de `GET /v1/admin/topics`. Erreur **404** si le thème n'existe pas.
+Changes the label only: the `slug` keeps its original value, because the recommender uses it in its `fallback:{slug}` keys. Response **200** in the `GET /v1/admin/topics` format. Error **404** if the topic does not exist.
+
+There is no endpoint to delete a topic.
 
 ### GET /v1/admin/sources
 
-Réponse **200**, triée par nom :
+Response **200**, sorted by name:
 
 ```json
-[{ "id": 3, "name": "Le Monde", "siteUrl": "https://www.lemonde.fr", "feedUrl": "https://www.lemonde.fr/rss/une.xml", "language": "fr", "license": "Usage interne", "active": true }]
+[{ "id": 3, "name": "Le Journal Tech", "siteUrl": "https://journaltech.example", "feedUrl": "https://journaltech.example/rss", "language": "fr", "license": "Summary and link", "active": true }]
 ```
 
-`license` est omis s'il n'est pas renseigné.
+`license` is omitted when empty.
 
 ### POST /v1/admin/sources
 
 ```json
-{ "name": "Le Monde", "siteUrl": "https://www.lemonde.fr", "feedUrl": "https://www.lemonde.fr/rss/une.xml", "language": "fr", "license": "Usage interne" }
+{ "name": "Le Journal Tech", "siteUrl": "https://journaltech.example", "feedUrl": "https://journaltech.example/rss", "language": "fr", "license": "Summary and link" }
 ```
 
-| Champ | Règle |
+| Field | Rule |
 | --- | --- |
-| name | requis, ≤ 100 caractères |
-| siteUrl, feedUrl | requis, URL `http` ou `https`, ≤ 2048 caractères |
-| language | requis, code ISO 639-1 en minuscules (`fr`, `en`…) |
-| license | optionnel, ≤ 200 caractères |
+| name | Required, ≤ 100 characters |
+| siteUrl, feedUrl | Required, `http` or `https` URL, ≤ 2048 characters |
+| language | Required, lowercase ISO 639-1 code (`fr`, `en`…) |
+| license | Optional, ≤ 200 characters |
 
-Avant l'enregistrement, l'API télécharge `feedUrl` (5 s pour la connexion, 10 s pour la réponse, 5 Mo au plus, 5 redirections au plus) et le lit comme un flux RSS ou Atom. Réponse **201** au format de `GET /v1/admin/sources`, `active: true`.
+Before saving, the API downloads `feedUrl` (5 s to connect, 10 s to answer, 5 MB at most, 5 redirects at most) and parses it as RSS or Atom. Response **201** in the `GET /v1/admin/sources` format, `active: true`.
 
-Protection SSRF : seuls les flux publics sont téléchargés, en `http` ou `https` sur les ports 80 et 443. Une adresse de bouclage, privée (10/8, 172.16/12, 192.168/16, 100.64/10, fc00::/7), de lien local (dont les métadonnées cloud 169.254.169.254) ou de multicast est refusée, y compris comme destination d'une redirection. Le contrôle a lieu au moment même de la connexion : un domaine qui changerait d'adresse entre-temps (DNS rebinding) est refusé aussi.
+SSRF protection: only public feeds are downloaded, over `http` or `https` on ports 80 and 443. Loopback, private (10/8, 172.16/12, 192.168/16, 100.64/10, fc00::/7), link-local (including cloud metadata at 169.254.169.254) and multicast addresses are refused, including as redirect targets. The check happens when the connection is opened, so a domain that changes address in between (DNS rebinding) is refused too.
 
-Erreurs :
+Errors:
 
-- **409** si une source utilise déjà ce `feedUrl` ;
-- **422** si le flux est injoignable (`"Feed is unreachable"`), répond une erreur HTTP (`"Feed answered HTTP 404"`), n'est pas un flux valide (`"Not a valid RSS or Atom feed"`), ne contient aucun article (`"Feed has no articles"`), vise une adresse non autorisée (`"Feed address is not allowed"`), redirige plus de 5 fois (`"Feed redirects too many times"`) ou dépasse 5 Mo (`"Feed is larger than 5 MB"`). Le `detail` peut être affiché tel quel à l'administrateur.
+- **409** if a source already uses this `feedUrl`;
+- **422** if the feed is unreachable (`"Feed is unreachable"`), answers an HTTP error (`"Feed answered HTTP 404"`), is not a valid feed (`"Not a valid RSS or Atom feed"`), has no articles (`"Feed has no articles"`), targets a forbidden address (`"Feed address is not allowed"`), redirects more than 5 times (`"Feed redirects too many times"`) or exceeds 5 MB (`"Feed is larger than 5 MB"`). The `detail` can be shown to the administrator as is.
 
 ### PATCH /v1/admin/sources/{id}
 
@@ -378,8 +376,8 @@ Erreurs :
 { "active": false }
 ```
 
-`active` est requis, c'est le seul champ modifiable. Une source inactive est ignorée par l'ingestion ; ses articles déjà publiés restent dans les feeds. Réponse **200** au format de `GET /v1/admin/sources`. Erreur **404** si la source n'existe pas.
+`active` is required and is the only editable field. An inactive source is skipped by the ingestion; its published articles stay in feeds. Response **200** in the `GET /v1/admin/sources` format. Error **404** if the source does not exist.
 
 ### DELETE /v1/admin/sources/{id}
 
-Réponse **204**. Erreur **409** si la source a déjà des articles : il faut alors la désactiver, car supprimer ses articles effacerait les sauvegardés et l'historique des lecteurs. Erreur **404** si la source n'existe pas.
+Response **204**. Error **409** if the source already has articles: deactivate it instead, because deleting its articles would erase readers' saved lists and history. Error **404** if the source does not exist.
