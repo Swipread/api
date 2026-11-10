@@ -1,0 +1,32 @@
+meta {
+  name: Refresh (rotation)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/v1/auth/refresh
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: swipread_refresh={{refreshCookie}}
+}
+
+tests {
+  test("200 avec un access token de 15 min et un nouveau cookie", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().accessToken).to.be.a("string").and.not.be.empty;
+    expect(res.getBody().expiresIn).to.equal(900);
+    const cookie = [].concat(res.getHeader("set-cookie")).find(c => c.startsWith("swipread_refresh="));
+    const next = cookie.split(";")[0].split("=")[1];
+    expect(next).to.not.equal(bru.getVar("refreshCookie"));
+    bru.setVar("accessToken", res.getBody().accessToken);
+    bru.setVar("refreshCookie", next);
+  });
+}
+
+docs {
+  Le refresh token voyage dans le cookie HttpOnly swipread_refresh ; ici il est renvoyé explicitement pour ne pas dépendre de la gestion des cookies de l'outil.
+}

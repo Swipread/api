@@ -1,0 +1,27 @@
+meta {
+  name: Logout
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/v1/auth/logout
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: swipread_refresh={{refreshCookie}}
+}
+
+tests {
+  test("204, cookie effacé", function () {
+    expect(res.getStatus()).to.equal(204);
+    const cookie = [].concat(res.getHeader("set-cookie")).find(c => c.startsWith("swipread_refresh="));
+    expect(cookie).to.contain("Max-Age=0");
+  });
+}
+
+docs {
+  L'access token obtenu au refresh reste valable jusqu'à son expiration : les dossiers suivants l'utilisent.
+}

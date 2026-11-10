@@ -1,0 +1,22 @@
+meta {
+  name: Refresh after logout (401)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/v1/auth/refresh
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: swipread_refresh={{refreshCookie}}
+}
+
+tests {
+  test("401, le refresh token est révoqué", function () {
+    expect(res.getStatus()).to.equal(401);
+    expect(res.getBody().detail).to.equal("Invalid refresh token");
+  });
+}
