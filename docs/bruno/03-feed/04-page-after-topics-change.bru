@@ -1,0 +1,34 @@
+meta {
+  name: Page after topics change (fallback)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/v1/feed
+  body: none
+  auth: inherit
+}
+
+headers {
+  X-Session-Id: {{sessionId}}
+  X-Device: mobile
+}
+
+tests {
+  test("200 avec une page servie par le repli : le stock a été vidé", function () {
+    expect(res.getStatus()).to.equal(200);
+    const items = res.getBody().items;
+    expect(items).to.have.lengthOf(10);
+    items.forEach(item => expect(item.reason).to.equal("fallback"));
+  });
+
+  test("aucun article déjà servi", function () {
+    const seen = JSON.parse(bru.getVar("firstPageIds"));
+    res.getBody().items.forEach(item => expect(seen).to.not.include(item.articleId));
+  });
+}
+
+docs {
+  Sans vidage, cette page viendrait encore du stock de la reco (reason "explore").
+}

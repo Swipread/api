@@ -1,0 +1,29 @@
+meta {
+  name: Change topics (stock emptied)
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/v1/me/topics
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "topicIds": {{otherTopicIds}}
+  }
+}
+
+tests {
+  test("200 avec les nouveaux thèmes", function () {
+    expect(res.getStatus()).to.equal(200);
+    const ids = res.getBody().map(t => t.id);
+    expect(ids).to.have.members(JSON.parse(bru.getVar("otherTopicIds")));
+  });
+}
+
+docs {
+  US4 : le stock du feed, calculé sur les anciens thèmes, est vidé après l'enregistrement. seen:{userId} est conservé.
+}
