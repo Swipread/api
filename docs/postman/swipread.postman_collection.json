@@ -1439,7 +1439,8 @@
                   "pm.test(\"200 avec la source d'exemple du profil dev\", function () {",
                   "  pm.response.to.have.status(200);",
                   "  const sample = pm.response.json().find(s => s.feedUrl === \"https://example.org/rss\");",
-                  "  pm.expect(sample).to.include.keys(\"id\", \"name\", \"siteUrl\", \"feedUrl\", \"language\", \"active\");",
+                  "  pm.expect(sample).to.include.keys(\"id\", \"name\", \"siteUrl\", \"feedUrl\", \"language\", \"active\", \"topics\");",
+                  "  pm.expect(sample.topics).to.be.an(\"array\");",
                   "  pm.collectionVariables.set(\"sampleSourceId\", sample.id);",
                   "});"
                 ]
@@ -1455,7 +1456,7 @@
             "url": "{{baseUrl}}/v1/admin/sources",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Doublon\",\n  \"siteUrl\": \"https://example.org\",\n  \"feedUrl\": \"https://example.org/rss\",\n  \"language\": \"fr\"\n}",
+              "raw": "{\n  \"name\": \"Doublon\",\n  \"siteUrl\": \"https://example.org\",\n  \"feedUrl\": \"https://example.org/rss\",\n  \"language\": \"fr\",\n  \"topicIds\": [{{testTopicId}}]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1485,7 +1486,7 @@
             "url": "{{baseUrl}}/v1/admin/sources",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Adresse locale\",\n  \"siteUrl\": \"{{baseUrl}}\",\n  \"feedUrl\": \"{{baseUrl}}/v3/api-docs\",\n  \"language\": \"fr\"\n}",
+              "raw": "{\n  \"name\": \"Adresse locale\",\n  \"siteUrl\": \"{{baseUrl}}\",\n  \"feedUrl\": \"{{baseUrl}}/v3/api-docs\",\n  \"language\": \"fr\",\n  \"topicIds\": [{{testTopicId}}]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1587,6 +1588,71 @@
                   "pm.test(\"409, il faut désactiver la source\", function () {",
                   "  pm.response.to.have.status(409);",
                   "  pm.expect(pm.response.json().detail).to.equal(\"Source has articles: deactivate it instead\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set source topics",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/v1/admin/sources/{{sampleSourceId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topicIds\": [{{testTopicId}}]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200, la source a le thème de test et reste active\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.topics).to.have.lengthOf(1);",
+                  "  pm.expect(body.topics[0].slug).to.equal(\"theme-de-test\");",
+                  "  pm.expect(body.active).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create source with an unknown topic (400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/admin/sources",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Thème inconnu\",\n  \"siteUrl\": \"https://example.net\",\n  \"feedUrl\": \"https://example.net/rss\",\n  \"language\": \"fr\",\n  \"topicIds\": [999999]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400, thème inconnu\", function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().detail).to.equal(\"Unknown topic ids: [999999]\");",
                   "});"
                 ]
               }

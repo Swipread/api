@@ -1,0 +1,27 @@
+meta {
+  name: Set source topics
+  type: http
+  seq: 12
+}
+
+patch {
+  url: {{baseUrl}}/v1/admin/sources/{{sampleSourceId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "topicIds": [{{testTopicId}}]
+  }
+}
+
+tests {
+  test("200, la source a le thème de test et reste active", function () {
+    expect(res.getStatus()).to.equal(200);
+    const body = res.getBody();
+    expect(body.topics).to.have.lengthOf(1);
+    expect(body.topics[0].slug).to.equal("theme-de-test");
+    expect(body.active).to.equal(true);
+  });
+}

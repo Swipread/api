@@ -14,7 +14,8 @@ tests {
   test("200 avec la source d'exemple du profil dev", function () {
     expect(res.getStatus()).to.equal(200);
     const sample = res.getBody().find(s => s.feedUrl === "https://example.org/rss");
-    expect(sample).to.include.keys("id", "name", "siteUrl", "feedUrl", "language", "active");
+    expect(sample).to.include.keys("id", "name", "siteUrl", "feedUrl", "language", "active", "topics");
+    expect(sample.topics).to.be.an("array");
     bru.setVar("sampleSourceId", sample.id);
   });
 }
