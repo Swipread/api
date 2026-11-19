@@ -47,7 +47,7 @@ No data is seeded without the `dev` or `test` profile:
 1. **Create the first admin.** Sign up in the web app, then, on the server, `UPDATE app.users SET role = 'ADMIN' WHERE email = '…'` (with Docker Compose: `docker compose exec postgres psql -U swipread`). Log in again: the role is read from the access token, renewed every 15 minutes at most.
 2. **Create the topics.** The topic list is empty, and readers cannot finish onboarding until topics exist. The web app lets an admin without topics reach the administration: its onboarding screen shows a « Créer les thèmes » link. `POST /v1/admin/topics` works too. Then pick your own topics.
 3. **Add sources** through the administration, with their topics and after checking their reuse conditions; the ingestion reads them within 15 minutes and fills `app.articles` (see [Ingestion](features/ingestion.md)).
-4. **Create the recommender's login role** in the `swipread_reco` group (see [Database](database.md#recommender-role)).
+4. **Deploy the recommender** ([Swipread/reco](https://github.com/Swipread/reco/blob/main/docs/deployment.md)) once the API has run its migrations: it needs a login role in the `swipread_reco` group (see [Database](database.md#recommender-role)), which the server's deployment script creates from its secrets. Until it runs, readers get the fallback feed.
 
 ## Operations
 
