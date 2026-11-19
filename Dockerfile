@@ -8,7 +8,9 @@ COPY mvnw pom.xml ./
 # Dépendances dans leur propre couche : modifier le code ne les retélécharge pas
 RUN ./mvnw -B -q dependency:go-offline
 COPY src src
-RUN ./mvnw -B -q -DskipTests package && cp target/api-*.jar app.jar
+# Version de l'application, fournie par la release (sinon celle du pom)
+ARG VERSION
+RUN ./mvnw -B -q -DskipTests ${VERSION:+-Drevision=$VERSION} package && cp target/api-*.jar app.jar
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app

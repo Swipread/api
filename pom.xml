@@ -10,7 +10,7 @@
     </parent>
     <groupId>Swipread</groupId>
     <artifactId>api</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>${revision}</version>
     <name>API</name>
     <description>API</description>
     <url/>
@@ -28,6 +28,8 @@
     </scm>
     <properties>
         <java.version>25</java.version>
+        <!-- Version de l'application ; la release la remplace par celle du tag (-Drevision=1.2.0) -->
+        <revision>0.0.1-SNAPSHOT</revision>
     </properties>
     <dependencies>
         <dependency>
