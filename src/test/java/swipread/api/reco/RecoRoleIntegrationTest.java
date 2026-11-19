@@ -55,11 +55,25 @@ class RecoRoleIntegrationTest extends IntegrationTest {
     void writesRecoAndCreatesItsOwnTables() {
         String table = "reco.it_" + UUID.randomUUID().toString().replace("-", "");
         asReco(statement -> {
-            assertThat(run(statement, "INSERT INTO reco.model_runs (version, started_at) VALUES ('it', now())")).isNull();
-            assertThat(run(statement, "DELETE FROM reco.model_runs WHERE version = 'it'")).isNull();
             assertThat(run(statement, "CREATE TABLE " + table + " (id int)")).isNull();
+            assertThat(run(statement, "INSERT INTO " + table + " VALUES (1)")).isNull();
+            assertThat(run(statement, "UPDATE " + table + " SET id = 2")).isNull();
+            assertThat(run(statement, "DELETE FROM " + table)).isNull();
             assertThat(run(statement, "DROP TABLE " + table)).isNull();
         });
+    }
+
+    @Test
+    void backendCreatesNoTableInReco() {
+        // V8 : le schéma reco appartient à la reco, qui crée ses tables elle-même
+        assertThat(jdbc.queryForList(
+                "SELECT tablename FROM pg_tables WHERE schemaname = 'reco' AND tableowner = current_user", String.class))
+                .isEmpty();
+    }
+
+    @Test
+    void readsTheSourceTopics() {
+        asReco(statement -> assertThat(run(statement, "SELECT count(*) FROM app.source_topics")).isNull());
     }
 
     @Test

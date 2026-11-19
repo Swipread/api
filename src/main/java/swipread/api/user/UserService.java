@@ -47,7 +47,7 @@ public class UserService {
 
     /**
      * Supprime le compte et les données personnelles : thèmes et user_articles (cascade), événements, clés Redis.
-     * La reco est prévenue par un message user_deleted pour effacer reco.user_profiles.
+     * La reco est prévenue par un message user_deleted pour effacer le profil et les lots du lecteur.
      */
     public void delete(String userId) {
         transaction.executeWithoutResult(status -> {
