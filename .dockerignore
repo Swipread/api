@@ -1,0 +1,9 @@
+target
+.idea
+.run
+.git
+.github
+docs
+notes
+*.log
+.DS_Store
