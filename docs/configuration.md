@@ -72,4 +72,4 @@ Also check:
   CREATE ROLE reco_service LOGIN PASSWORD '…' IN ROLE swipread_reco;
   ```
 
-A tested container image example is in [Deployment](deployment.md).
+The container image is described in [Deployment](deployment.md#container-image).

@@ -11,47 +11,16 @@ java -jar target/api-0.0.1-SNAPSHOT.jar
 
 Run the tests before building a release (`./mvnw test`, Docker required).
 
-## Example: container image
+## Container image
 
-The files below were built and run as shown, against a fresh PostgreSQL and Redis, without any Spring profile (production mode). Put them at the repository root; they are not committed, adapt them to your infrastructure.
-
-`Dockerfile`:
-
-```dockerfile
-# Build stage
-FROM eclipse-temurin:25-jdk AS build
-WORKDIR /app
-COPY .mvn .mvn
-COPY mvnw pom.xml ./
-RUN ./mvnw -q dependency:go-offline
-COPY src src
-RUN ./mvnw -q -DskipTests package && cp target/api-*.jar app.jar
-
-# Runtime stage
-FROM eclipse-temurin:25-jre
-WORKDIR /app
-RUN groupadd --system swipread && useradd --system --gid swipread swipread
-COPY --from=build /app/app.jar app.jar
-USER swipread
-EXPOSE 8080
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]
-```
-
-`.dockerignore`:
-
-```text
-target
-.idea
-.git
-docs
-notes
-```
+The repository ships a production image: [`Dockerfile`](../Dockerfile) and [`.dockerignore`](../.dockerignore). Tests do not run during the image build; CI runs them.
 
 - Dependencies are downloaded in their own layer, so changing the code does not download them again.
-- The runtime image has a JRE only and runs as a non-root user.
-- `-XX:MaxRAMPercentage=75` sizes the heap from the container's memory limit.
+- The runtime image has a JRE only and runs as a non-root user (`swipread`). It weighs about 440 MB.
+- `-XX:MaxRAMPercentage=75` sizes the heap from the container's memory limit, and `-XX:+ExitOnOutOfMemoryError` makes the JVM exit on an `OutOfMemoryError`, so that the container is restarted instead of running in a broken state.
+- The base images are pinned to a major version (`eclipse-temurin:25-jdk`, `25-jre`), so each new image picks up their security fixes.
 
-Run it:
+Build and run it:
 
 ```bash
 docker build -t swipread-api .
@@ -65,7 +34,9 @@ docker run --rm -p 8080:8080 \
   swipread-api
 ```
 
-What the check run confirmed: Flyway applies V1 to V7 on an empty database (including the `swipread_reco` role, as the database owner was a superuser), the application starts in a few seconds, `/actuator/health` is `UP`, sign-up sets a `Secure; HttpOnly; SameSite=Strict` refresh cookie, and with the recommender unreachable the feed falls back as designed. In a real deployment the JWT secret must be stable across restarts and instances: generate it once and store it in your secret manager.
+What a check run confirmed, against a fresh PostgreSQL and Redis without any Spring profile (production mode), behind an HTTPS reverse proxy: Flyway applies V1 to V7 on an empty database (including the `swipread_reco` role, as the database owner was a superuser), the application starts in a few seconds, `/actuator/health` is `UP`, sign-up from a browser sets a `Secure; HttpOnly; SameSite=Strict` refresh cookie, and with the recommender unreachable the feed falls back as designed. In a real deployment the JWT secret must be stable across restarts and instances: generate it once and store it in your secret manager.
+
+`SWIPREAD_CORS_ALLOWED_ORIGINS` must hold the browser's exact origin, port included, even when the web app and the API share one origin behind a TLS proxy: the API receives plain HTTP from the proxy, so it sees the browser's `https` origin as a cross-origin request and rejects it with 403 when it is not listed.
 
 ## First start in production
 
