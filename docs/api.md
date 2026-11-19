@@ -52,7 +52,7 @@ The `ProblemDetail` schema is declared in the OpenAPI spec for every 4xx answer:
 | PATCH | `/v1/admin/topics/{id}` | admin | Rename a topic |
 | GET | `/v1/admin/sources` | admin | Ingested sources |
 | POST | `/v1/admin/sources` | admin | Add a source (the feed is checked first) |
-| PATCH | `/v1/admin/sources/{id}` | admin | Activate or deactivate a source |
+| PATCH | `/v1/admin/sources/{id}` | admin | Activate or deactivate a source, or change its topics |
 | DELETE | `/v1/admin/sources/{id}` | admin | Delete a source that has no articles |
 
 ## Auth
@@ -343,15 +343,20 @@ There is no endpoint to delete a topic.
 Response **200**, sorted by name:
 
 ```json
-[{ "id": 3, "name": "Le Journal Tech", "siteUrl": "https://journaltech.example", "feedUrl": "https://journaltech.example/rss", "language": "fr", "license": "Summary and link", "active": true }]
+[{ "id": 3, "name": "Le Journal Tech", "siteUrl": "https://journaltech.example", "feedUrl": "https://journaltech.example/rss", "language": "fr", "license": "Summary and link", "active": true,
+   "topics": [{ "id": 2, "slug": "technologie", "label": "Technologie" }, { "id": 5, "slug": "science", "label": "Science" }],
+   "lastFetchedAt": "2026-11-19T10:15:00Z" }]
 ```
 
-`license` is omitted when empty.
+- `topics`: the source's topics, in the admin's order. Its articles inherit them, the first being their main topic. A source without topics is skipped by the ingestion (only possible for sources created before topics existed).
+- `lastFetchedAt`: last successful read of the feed by the ingestion; omitted if it never succeeded.
+- `lastError`: error of the last read, in English; omitted when it succeeded.
+- `license` is omitted when empty.
 
 ### POST /v1/admin/sources
 
 ```json
-{ "name": "Le Journal Tech", "siteUrl": "https://journaltech.example", "feedUrl": "https://journaltech.example/rss", "language": "fr", "license": "Summary and link" }
+{ "name": "Le Journal Tech", "siteUrl": "https://journaltech.example", "feedUrl": "https://journaltech.example/rss", "language": "fr", "license": "Summary and link", "topicIds": [2, 5] }
 ```
 
 | Field | Rule |
@@ -360,6 +365,7 @@ Response **200**, sorted by name:
 | siteUrl, feedUrl | Required, `http` or `https` URL, ≤ 2048 characters |
 | language | Required, lowercase ISO 639-1 code (`fr`, `en`…) |
 | license | Optional, ≤ 200 characters |
+| topicIds | Required, 1 to 3 distinct existing topic ids, in order (the first is the articles' main topic) |
 
 Before saving, the API downloads `feedUrl` (5 s to connect, 10 s to answer, 5 MB at most, 5 redirects at most) and parses it as RSS or Atom. Response **201** in the `GET /v1/admin/sources` format, `active: true`.
 
@@ -367,16 +373,17 @@ SSRF protection: only public feeds are downloaded, over `http` or `https` on por
 
 Errors:
 
+- **400** on validation errors, `"Topic ids must not repeat"`, or `"Unknown topic ids: [42]"`; topics are checked before the feed is downloaded;
 - **409** if a source already uses this `feedUrl`;
 - **422** if the feed is unreachable (`"Feed is unreachable"`), answers an HTTP error (`"Feed answered HTTP 404"`), is not a valid feed (`"Not a valid RSS or Atom feed"`), has no articles (`"Feed has no articles"`), targets a forbidden address (`"Feed address is not allowed"`), redirects more than 5 times (`"Feed redirects too many times"`) or exceeds 5 MB (`"Feed is larger than 5 MB"`). The `detail` can be shown to the administrator as is.
 
 ### PATCH /v1/admin/sources/{id}
 
 ```json
-{ "active": false }
+{ "active": false, "topicIds": [5, 2] }
 ```
 
-`active` is required and is the only editable field. An inactive source is skipped by the ingestion; its published articles stay in feeds. Response **200** in the `GET /v1/admin/sources` format. Error **404** if the source does not exist.
+A partial update: `active`, `topicIds`, or both; an absent field is left unchanged, but at least one is required (400 `"Nothing to update: give active or topicIds"`). `topicIds` follows the creation rules and replaces the source's topics in the given order; the articles already ingested keep theirs. An inactive source is skipped by the ingestion; its published articles stay in feeds. Response **200** in the `GET /v1/admin/sources` format. Errors **400** as for the creation, **404** if the source does not exist.
 
 ### DELETE /v1/admin/sources/{id}
 

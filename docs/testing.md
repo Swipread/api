@@ -6,7 +6,7 @@
 ./mvnw test
 ```
 
-Docker must be running: integration tests start their own `pgvector/pgvector:pg17` and `redis:7.4` containers through Testcontainers. The full suite (161 tests) runs in about 30 seconds once the images are pulled.
+Docker must be running: integration tests start their own `pgvector/pgvector:pg17` and `redis:7.4` containers through Testcontainers. The full suite (165 tests) runs in about 30 seconds once the images are pulled.
 
 ### Continuous integration
 
@@ -62,9 +62,9 @@ Truncate the instants you send and then compare to milliseconds (`Instant.now().
 
 ## End-to-end scenarios (Bruno and Postman)
 
-The same scenario exists in two versions, for testers on either tool. It walks the whole API with assertions: 47 requests and 52 tests. Test names are in French (the testers' language).
+The same scenario exists in two versions, for testers on either tool. It walks the whole API with assertions: 49 requests and 54 tests. Test names are in French (the testers' language).
 
-It expects the API in the `dev` profile with the mock recommender: feed tests expect `reason: "explore"`. Each run creates a new user (`smoke+<timestamp>@example.org`), so it can be run again at will. « 08 Account » deletes that user; « 09 Admin » logs in with the seeded admin and creates a « Thème de test » topic once in the development database. No source is created (that would need a real online feed); source creation is covered by the integration tests.
+It expects the API in the `dev` profile with the mock recommender: feed tests expect `reason: "explore"`. Each run creates a new user (`smoke+<timestamp>@example.org`), so it can be run again at will. « 08 Account » deletes that user; « 09 Admin » logs in with the seeded admin and creates a « Thème de test » topic once in the development database. No source is created (that would need a real online feed); source creation is covered by the integration tests. « 09 Admin » also gives the sample source the « Thème de test » topic.
 
 | Folder | Checks |
 | --- | --- |
@@ -76,7 +76,7 @@ It expects the API in the `dev` profile with the mock recommender: feed tests ex
 | 06 Security and docs | 401 without token and with an invalid token, OpenAPI spec, CORS preflight from the web app's origin, admin route as a reader (403), admin login, admin profile with role `ADMIN` |
 | 07 History | The opened article is in the history |
 | 08 Account | Rename, account deletion, token refused afterwards (401) |
-| 09 Admin | Topics with counts, topic creation (201, or 409 on later runs), duplicate (409), rename, source list, known feed (409), local address refused by the SSRF protection (422), deactivate, reactivate, delete a source with articles (409) |
+| 09 Admin | Topics with counts, topic creation (201, or 409 on later runs), duplicate (409), rename, source list with topics, known feed (409), local address refused by the SSRF protection (422), deactivate, reactivate, delete a source with articles (409), set the sample source's topics, unknown topic (400) |
 
 > Any change to the scenario must be made in both versions.
 

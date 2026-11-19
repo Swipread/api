@@ -8,7 +8,7 @@ Administration of the RSS and Atom feeds the ingestion reads, with a check of ea
 | --- | --- |
 | `GET /v1/admin/sources` | All sources, sorted by name |
 | `POST /v1/admin/sources` | Checks the feed, then saves the source as active |
-| `PATCH /v1/admin/sources/{id}` | Activates or deactivates (`active` is the only editable field) |
+| `PATCH /v1/admin/sources/{id}` | Activates or deactivates, and/or replaces the topics (partial update) |
 | `DELETE /v1/admin/sources/{id}` | Deletes a source that has no articles |
 
 All require the `ADMIN` role. Details: [API reference](../api.md#administration).
@@ -17,10 +17,21 @@ All require the `ADMIN` role. Details: [API reference](../api.md#administration)
 
 `SourceAdminService.create`:
 
-1. Rejects a `feedUrl` already used (409). The unique constraint on `app.sources.feed_url` also catches concurrent requests.
-2. Downloads and parses the feed with `FeedProbe.countEntries`, **outside any transaction**, so no database connection is held during the network call.
-3. Refuses a feed with no entries (422 `"Feed has no articles"`).
-4. Saves the source (`license` empty → `null`), `active: true`.
+1. Checks `topicIds`: 1 to 3 (bean validation), no repeat, all existing (400). Done first, since it costs no network call.
+2. Rejects a `feedUrl` already used (409). The unique constraint on `app.sources.feed_url` also catches concurrent requests.
+3. Downloads and parses the feed with `FeedProbe.countEntries`, **outside any transaction**, so no database connection is held during the network call.
+4. Refuses a feed with no entries (422 `"Feed has no articles"`).
+5. Saves the source (`license` empty → `null`), `active: true`, and its topics, in one transaction (`TransactionTemplate`).
+
+## Topics of a source
+
+A source has one to three topics, in the order the admin chose (`app.source_topics.position`, V8). The ingestion gives its articles these topics with confidence 1.0, 0.9 and 0.8 in that order, so the first one is the articles' main topic for the recommender. `PATCH` with `topicIds` replaces them; articles already ingested keep their topics.
+
+`SourceTopics` reads and writes them in SQL rather than as a JPA collection: reordering would make Hibernate rewrite the rows one by one and break the `(source_id, position)` uniqueness on the way. `replace` deletes the source's rows and inserts the new ones, inside the caller's transaction.
+
+## Ingestion state
+
+`app.sources` keeps what the ingestion needs (V8): the feed's `ETag` and `Last-Modified` for conditional requests, `last_fetched_at` (last successful read) and `last_error` (error of the last read, cleared by a success). `Source.recordFetch` and `Source.recordError` update them; `GET` exposes `lastFetchedAt` and `lastError`.
 
 `RomeFeedProbe` implements the check:
 
@@ -54,4 +65,4 @@ The API downloads a URL typed by a user. Without protection, an admin account (o
 
 ## Tests
 
-`AdminSourcesIntegrationTest` (creation with a checked feed served locally, 409 on a used feed, 422 on empty or failing feeds, deactivation, deletion and 409, 403 for readers), `RomeFeedProbeTest` (RSS and Atom, empty feed, HTML, 404, unreachable host, external entities refused, redirects checked at each hop, redirect loop, local feed refused by default, connection through the policy's resolver, rebinding refused at connection time), `FeedAddressPolicyTest` (IPv4 and IPv6 ranges, public addresses, ports, schemes, one internal address among several, unknown host).
+`AdminSourcesIntegrationTest` (creation with a checked feed served locally and its ordered topics, 409 on a used feed, 422 on empty or failing feeds, topics replaced and reordered, partial update, topic ids checked (empty, more than three, repeated, unknown, nothing to update), deactivation, deletion with its topics and 409, 403 for readers), `RomeFeedProbeTest` (RSS and Atom, empty feed, HTML, 404, unreachable host, external entities refused, redirects checked at each hop, redirect loop, local feed refused by default, connection through the policy's resolver, rebinding refused at connection time), `FeedAddressPolicyTest` (IPv4 and IPv6 ranges, public addresses, ports, schemes, one internal address among several, unknown host).

@@ -50,7 +50,7 @@ The [web app](https://github.com/Swipread/web) is the main client. The recommend
 | An endless feed of recommended articles | Activate, deactivate or delete sources | Events stored, aggregated and streamed through a transactional outbox |
 | Like, save, share, hide, with every interaction tracked | Admin-only routes by role | OpenAPI spec with typed errors (RFC 9457 `ProblemDetail`) |
 | Saved list and reading history, cursor-paginated | | Monthly partitions of the event log, dedicated database role for the recommender |
-| Rename or delete the account, with all personal data | | 161 automated tests and an end-to-end scenario for Bruno and Postman |
+| Rename or delete the account, with all personal data | | 165 automated tests and an end-to-end scenario for Bruno and Postman |
 
 ## How it works
 
@@ -135,7 +135,7 @@ Code is organised by feature; Flyway owns the schema. → [Architecture](docs/ar
 ./mvnw test
 ```
 
-161 unit and integration tests run in about 30 seconds; integration tests start their own PostgreSQL and Redis with Testcontainers (Docker required). They run on GitHub Actions for every push and pull request. An end-to-end scenario of 47 requests exists for both Bruno and Postman. → [Testing](docs/testing.md)
+165 unit and integration tests run in about 30 seconds; integration tests start their own PostgreSQL and Redis with Testcontainers (Docker required). They run on GitHub Actions for every push and pull request. An end-to-end scenario of 49 requests exists for both Bruno and Postman. → [Testing](docs/testing.md)
 
 ## Configuration and deployment
 
