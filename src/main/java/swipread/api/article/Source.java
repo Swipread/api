@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import java.time.Instant;
+
 /**
  * Flux ingéré (RSS ou API), géré par l'administration.
  */
@@ -35,6 +37,18 @@ public class Source {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    // Lecture par l'ingestion (V8) : validateurs HTTP du flux, date de la dernière lecture réussie, dernière erreur
+    private String etag;
+
+    @Column(name = "last_modified")
+    private String lastModified;
+
+    @Column(name = "last_fetched_at")
+    private Instant lastFetchedAt;
+
+    @Column(name = "last_error")
+    private String lastError;
 
     protected Source() {
     }
@@ -77,5 +91,38 @@ public class Source {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public String getEtag() {
+        return etag;
+    }
+
+    public String getLastModified() {
+        return lastModified;
+    }
+
+    public Instant getLastFetchedAt() {
+        return lastFetchedAt;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
+
+    /**
+     * Lecture réussie du flux : les validateurs HTTP servent à la lecture conditionnelle suivante.
+     */
+    public void recordFetch(Instant at, String etag, String lastModified) {
+        this.lastFetchedAt = at;
+        this.etag = etag;
+        this.lastModified = lastModified;
+        this.lastError = null;
+    }
+
+    /**
+     * Lecture en échec : la date de la dernière lecture réussie est gardée.
+     */
+    public void recordError(String error) {
+        this.lastError = error;
     }
 }

@@ -41,6 +41,7 @@ class AdminSourceController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Add a source after checking that its feed returns articles")
     @ApiResponse(responseCode = "201", useReturnTypeSchema = true)
+    @ApiResponse(responseCode = "400", description = "Invalid body, or unknown or repeated topic ids")
     @ApiResponse(responseCode = "409", description = "A source already uses this feed URL")
     @ApiResponse(responseCode = "422", description = "Feed unreachable, invalid, or without articles")
     SourceResponse create(@Valid @RequestBody CreateSourceRequest request) {
@@ -48,11 +49,12 @@ class AdminSourceController {
     }
 
     @PatchMapping("/{id}")
-    @Operation(summary = "Activate or deactivate a source")
+    @Operation(summary = "Activate or deactivate a source, or change its topics")
     @ApiResponse(responseCode = "200", useReturnTypeSchema = true)
+    @ApiResponse(responseCode = "400", description = "Nothing to update, or unknown or repeated topic ids")
     @ApiResponse(responseCode = "404", description = "Unknown source")
     SourceResponse update(@PathVariable int id, @Valid @RequestBody UpdateSourceRequest request) {
-        return service.setActive(id, request.active());
+        return service.update(id, request);
     }
 
     @DeleteMapping("/{id}")
