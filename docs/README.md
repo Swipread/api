@@ -13,7 +13,7 @@ Developer documentation for the Swipread backend. New here? Read [Getting starte
 | [Database](database.md) | Schema diagram, tables, partitions, indexes, the recommender's role |
 | [Configuration](configuration.md) | Properties, environment variables, profiles, production checklist |
 | [Testing](testing.md) | Automated tests, continuous integration and the Bruno/Postman scenarios |
-| [Deployment](deployment.md) | Build, container image, first start, operations, release checklist |
+| [Deployment](deployment.md) | Build, container image, first start, operations, production, releasing with a version tag, checklist |
 | [Decisions](decisions.md) | Architecture decision records, contract deviations, validated interpretations, open questions |
 | [FAQ](faq.md) | Fix common problems |
 | [Glossary](glossary.md) | Look up a term |

@@ -139,7 +139,7 @@ Code is organised by feature; Flyway owns the schema. → [Architecture](docs/ar
 
 ## Configuration and deployment
 
-In production the API runs without a profile and reads everything from environment variables (database, Redis, JWT secret, recommender URL, allowed origins). A container image example has been built and run against a fresh database. → [Configuration](docs/configuration.md), [Deployment](docs/deployment.md)
+In production the API runs without a profile and reads everything from environment variables (database, Redis, JWT secret, recommender URL, allowed origins). Version 1.0.0 is in production: a version tag on `main` runs the checks, builds the container image, deploys it and creates the GitHub release. → [Configuration](docs/configuration.md), [Deployment](docs/deployment.md#releasing)
 
 ## Project status
 
