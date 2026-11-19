@@ -12,7 +12,7 @@ Developer documentation for the Swipread backend. New here? Read [Getting starte
 | [Flows](flows.md) | Follow the main sequences end to end (first feed, strong signal, refill race, token renewal, deletion, source check) |
 | [Database](database.md) | Schema diagram, tables, partitions, indexes, the recommender's role |
 | [Configuration](configuration.md) | Properties, environment variables, profiles, production checklist |
-| [Testing](testing.md) | Automated tests and the Bruno/Postman scenarios |
+| [Testing](testing.md) | Automated tests, continuous integration and the Bruno/Postman scenarios |
 | [Deployment](deployment.md) | Build, tested container image, first start, operations, release checklist |
 | [Decisions](decisions.md) | Architecture decision records, contract deviations, validated interpretations, open questions |
 | [FAQ](faq.md) | Fix common problems |

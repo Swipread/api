@@ -4,6 +4,7 @@
 
 Java 25 · Spring Boot 4 · PostgreSQL 17 + pgvector · Redis 7.4 · Flyway · Spring Security (JWT) · springdoc-openapi · Testcontainers.
 
+[![CI](https://github.com/Swipread/api/actions/workflows/ci.yml/badge.svg)](https://github.com/Swipread/api/actions/workflows/ci.yml)
 ![Java 25](https://img.shields.io/badge/Java-25-e76f00)
 ![Spring Boot 4](https://img.shields.io/badge/Spring%20Boot-4-6db33f)
 ![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17%20%2B%20pgvector-336791)
@@ -134,7 +135,7 @@ Code is organised by feature; Flyway owns the schema. → [Architecture](docs/ar
 ./mvnw test
 ```
 
-161 unit and integration tests run in about 30 seconds; integration tests start their own PostgreSQL and Redis with Testcontainers (Docker required). An end-to-end scenario of 47 requests exists for both Bruno and Postman. → [Testing](docs/testing.md)
+161 unit and integration tests run in about 30 seconds; integration tests start their own PostgreSQL and Redis with Testcontainers (Docker required). They run on GitHub Actions for every push and pull request. An end-to-end scenario of 47 requests exists for both Bruno and Postman. → [Testing](docs/testing.md)
 
 ## Configuration and deployment
 

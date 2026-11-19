@@ -91,7 +91,7 @@ No data is seeded without the `dev` or `test` profile:
 
 ## Release checklist
 
-1. `./mvnw test` passes.
+1. `./mvnw test` passes, and the [CI](testing.md#continuous-integration) run of the released commit is green.
 2. New migrations are additive (a committed migration is never edited).
 3. The OpenAPI spec changes are announced to the web team (they regenerate their types) and contract changes to the recommendation team.
 4. Production variables are set as in the [checklist](configuration.md#production-checklist), with `SWIPREAD_SOURCES_ALLOW_LOCAL_FEEDS` unset.

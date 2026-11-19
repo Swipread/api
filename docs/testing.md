@@ -8,6 +8,12 @@
 
 Docker must be running: integration tests start their own `pgvector/pgvector:pg17` and `redis:7.4` containers through Testcontainers. The full suite (161 tests) runs in about 30 seconds once the images are pulled.
 
+### Continuous integration
+
+GitHub Actions runs [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) on every push to `main` and on every pull request: `./mvnw -B -ntp verify` on Temurin 25, with the Maven repository cached. The runner provides Docker, so the integration tests start their containers there as they do locally. A new push to the same branch cancels the run in progress. When the build fails, the Surefire reports are attached to the run (`surefire-reports` artifact, kept 7 days).
+
+The Bruno and Postman scenarios are not run in CI: they need the API started in the `dev` profile. Run them by hand before a release.
+
 ### Test classes
 
 | Kind | Class | Covers |
