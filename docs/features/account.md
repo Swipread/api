@@ -65,7 +65,7 @@ A late event (an `open` sent after a more recent one) does not move `opened_at` 
 
 1. In one transaction (`EventErasure`): delete the user's rows from `app.events`, write a `user_deleted` message to the outbox, then delete the account. Cascades remove `user_topics`, `user_articles` and `refresh_tokens`.
 2. After the commit: delete the Redis keys `feed:{userId}`, `:req`, `:lock`, `:meta`, `:ver` and `seen:{userId}`.
-3. The outbox relay publishes `user_deleted` on the `events` stream; the recommender erases `reco.user_profiles` for that user.
+3. The outbox relay publishes `user_deleted` on the `events` stream; the recommender erases the reader's profile and lots.
 
 The access token still held by the client is refused at the next request (the account no longer exists). A refill that was already running may recreate a stock key for the deleted user; nobody can read it and it expires after 6 hours.
 

@@ -46,17 +46,18 @@ All errors are RFC 9457 `ProblemDetail`. Validation messages are forced to Engli
 
 ## Contract deviations (validated)
 
-Validated on 13/10/2026 and 10/11/2026, and reported in the contract (v1.1 to v1.4).
+Validated on 13/10/2026, 10/11/2026 and 19/11/2026, and reported in the contract (v1.1 to v1.5).
 
 | Topic | Decision | Reason |
 | --- | --- | --- |
+| Tables of the `reco` schema (v1.5) | V8 drops `reco.user_profiles` and `reco.model_runs`, created by V1 from the contract's DDL; the API creates the schema and the role only | Never used, and owned by the API's role: the recommender could neither change them nor create its own profile table under that name |
 | Origin of stock articles | New key `feed:{userId}:meta` (Hash `articleId → requestId\|reason`, 6 h). `feed:{userId}` stays a list of plain ids | The stock mixes several recommender batches and fallback articles; `feed:{userId}:req` only keeps the latest `requestId`, which would mis-attribute events |
 | Empty stock | The first page is served directly from the fallback feed, then the recommender refill starts in the background | « The reader never waits for the recommender » |
 | User roles (web team request) | Column `app.users.role` (`READER` by default, or `ADMIN`), V3; carried in the `roles` claim; protects `/v1/admin/**` | The web app must show and protect administration screens |
 | Removing a saved article (web team request) | New event type `unsave`, like `unlike`: `saved_at` back to `NULL`; published like the others; no invalidation | `app.events` stays the source of truth and the recommender gets the signal |
 | `read` without `scrollDepth` (web team request) | `scrollDepth` optional; a `read` is strong if `scrollDepth > 0.8` **or** `readMs` ≥ 60 % of the estimated reading time (230 words per minute) | On the web the article opens on the source's site, where scrolling cannot be measured |
 | Reading history (web team request) | Column `app.user_articles.opened_at` (V4, backfilled), set by `open` and `read` to the latest date; `GET /v1/me/history` lists opened articles, hidden ones excluded | The contract plans a history screen on `user_articles` but no column told an opened article from a card scrolled past |
-| Account deletion (web team request) | `DELETE /v1/me` deletes the account (cascades), its events, refresh tokens and Redis keys, and publishes `user_deleted` on the stream; tokens of deleted accounts are refused | Erasure of personal data; the recommender erases its own `reco.user_profiles` |
+| Account deletion (web team request) | `DELETE /v1/me` deletes the account (cascades), its events, refresh tokens and Redis keys, and publishes `user_deleted` on the stream; tokens of deleted accounts are refused | Erasure of personal data; the recommender erases its own data on that message (profile and lots) |
 | Stock version (contract v1.2) | `feed:{userId}:ver`, see ADR-4 | Stale batches after an invalidation |
 | Outbox (contract v1.3) | `app.event_outbox` (V6), see ADR-5 | Atomic publication |
 | Refresh tokens (contract v1.4) | `app.refresh_tokens` (V7), see ADR-6 | No daily login, no long-lived token readable by JavaScript |

@@ -108,7 +108,7 @@ sequenceDiagram
     A->>R: DEL feed:{u}, :req, :lock, :meta, :ver, seen:{u}
     A-->>C: 204
     Note over A,R: outbox relay publishes user_deleted
-    R-->>Reco: user_deleted → erase reco.user_profiles
+    R-->>Reco: user_deleted → erase the reader's profile and lots
     C->>A: any request with the old access token
     A-->>C: 401 (the account no longer exists)
 ```

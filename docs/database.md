@@ -3,7 +3,7 @@
 One PostgreSQL 17 database with the pgvector extension, split into two schemas:
 
 - `app`: business data, written by the API, the ingestion and admins;
-- `reco`: the recommendation service's internal data.
+- `reco`: the recommendation service's internal data. The API creates the schema and the `swipread_reco` role, but no table in it: the recommender creates and evolves its own (see its documentation).
 
 Source of truth: the Flyway migrations in `src/main/resources/db/migration`. Keep this page in sync with every new migration.
 
@@ -16,6 +16,7 @@ Source of truth: the Flyway migrations in `src/main/resources/db/migration`. Kee
 | V5 | `swipread_reco` group role and its privileges |
 | V6 | `app.event_outbox` |
 | V7 | `app.refresh_tokens` |
+| V8 | `app.source_topics`; `app.sources.etag`, `last_modified`, `last_fetched_at`, `last_error` (ingestion); drops `reco.user_profiles` and `reco.model_runs`, created by V1 and never used |
 
 Repeatable migrations load data: `db/seed` (8 topics and the `admin@swipread.dev` account; `dev` and `test` profiles) and `db/dev-data` (300 sample articles; `dev` only).
 
@@ -52,6 +53,15 @@ erDiagram
         text language
         text license "nullable"
         boolean active
+        text etag "nullable, V8"
+        text last_modified "nullable, V8"
+        timestamptz last_fetched_at "nullable, V8"
+        text last_error "nullable, V8"
+    }
+    app_source_topics {
+        int source_id PK, FK
+        int topic_id PK, FK
+        smallint position UK "1 to 3, per source"
     }
     app_articles {
         text id PK "a_..."
@@ -110,23 +120,12 @@ erDiagram
         timestamptz revoked_at "nullable"
         uuid replaced_by FK "nullable"
     }
-    reco_user_profiles {
-        text user_id PK
-        vector embedding "vector(384)"
-        int events_count
-        timestamptz updated_at
-    }
-    reco_model_runs {
-        serial id PK
-        text version "e.g. content-v1"
-        timestamptz started_at
-        timestamptz finished_at "nullable"
-        jsonb metrics "nullable"
-    }
 
     app_users ||--o{ app_user_topics : "chooses (cascade)"
     app_topics ||--o{ app_user_topics : "is chosen"
     app_sources ||--o{ app_articles : "publishes"
+    app_sources ||--o{ app_source_topics : "is tagged (cascade)"
+    app_topics ||--o{ app_source_topics : "tags"
     app_articles ||--o{ app_article_topics : "is tagged (cascade)"
     app_topics ||--o{ app_article_topics : "tags"
     app_users ||--o{ app_user_articles : "interacts (cascade)"
@@ -134,7 +133,6 @@ erDiagram
     app_users ||--o{ app_refresh_tokens : "sessions (cascade)"
     app_users ||..o{ app_events : "user_id, no FK"
     app_articles ||..o{ app_events : "article_id, no FK"
-    app_users ||..o| reco_user_profiles : "user_id, no FK"
 ```
 
 ## Tables
@@ -144,23 +142,23 @@ erDiagram
 | `app.users` | API | Accounts, preferred locale, role |
 | `app.topics` | admins (seeded in `dev`/`test`) | Topics offered at onboarding |
 | `app.user_topics` | API | Topics chosen by each reader |
-| `app.sources` | admins | Ingested RSS/Atom feeds, with their reuse licence and status |
-| `app.articles` | ingestion | Metadata, summary, word count, embedding |
-| `app.article_topics` | ingestion | Topics detected for each article, with a confidence score |
+| `app.sources` | admins | Ingested RSS/Atom feeds, with their reuse licence and status; state of the last read by the ingestion (V8) |
+| `app.source_topics` | admins | One to three topics per source, in the admin's order (`position`); the source's articles inherit them (V8) |
+| `app.articles` | ingestion | Metadata, summary, word count; the `embedding` column is not filled (the recommender keeps its own embeddings) |
+| `app.article_topics` | ingestion | Topics of each article, inherited from its source: confidence 1.0, 0.9, 0.8 in the source's order |
 | `app.events` | API | Raw event history (`POST /v1/events`), partitioned by month |
 | `app.user_articles` | API | Per reader and article: dwell time, max scroll, like, save, hide, latest opening |
 | `app.event_outbox` | API | Stream messages waiting to be published, deleted once published; internal |
 | `app.refresh_tokens` | API | Hashed refresh tokens with their family, expiry, revocation and replacement; internal |
-| `reco.user_profiles` | recommender | Each reader's taste vector |
-| `reco.model_runs` | recommender | Training runs and their metrics |
 
-`app.events` is the source of truth: `app.user_articles` and `reco.user_profiles` can be rebuilt from it.
+`app.events` is the source of truth: `app.user_articles`, and the recommender's reader profiles, can be rebuilt from it.
 
 ## Foreign keys and deletion
 
 - `ON DELETE CASCADE`: deleting a user deletes their `user_topics`, `user_articles` and `refresh_tokens`; deleting an article deletes its `article_topics` and `user_articles`.
 - `app.events` has no foreign key on purpose: inserts stay fast and the history survives an article's deletion. Account deletion removes the user's events explicitly (`DELETE FROM app.events WHERE user_id = …`, served by `events_user_idx`).
-- `reco.user_profiles.user_id` has no foreign key to `app.users` either; the recommender erases it on the `user_deleted` message.
+- The recommender's tables have no foreign key to `app` (its role has no `REFERENCES` right); it erases a reader's data on the `user_deleted` message.
+- Deleting a source deletes its `source_topics`.
 - `app.refresh_tokens.replaced_by` points to another token, `ON DELETE SET NULL`.
 
 ## Partitioning of `app.events`

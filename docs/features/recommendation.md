@@ -58,7 +58,7 @@ The recommender reads `app` and writes `reco` with a login role that belongs to 
 The contract's revision history lists the changes. In short:
 
 - event type `unsave`; `read` events may come without `scrollDepth`;
-- `user_deleted` messages: erase `reco.user_profiles` for that user;
+- `user_deleted` messages: erase the reader's profile and lots;
 - the stream entry has a single `data` field;
 - fallback keys are by slug;
 - messages arrive within about 200 ms of the request, and exceptionally twice;
