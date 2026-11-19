@@ -3,6 +3,9 @@ spring:
     locations: classpath:db/migration,classpath:db/seed
 
 swipread:
+  ingestion:
+    # Les tests lancent l'ingestion eux-mêmes
+    enabled: false
   auth:
     refresh-cookie-secure: false
   cors:

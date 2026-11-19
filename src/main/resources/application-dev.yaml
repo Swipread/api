@@ -7,6 +7,9 @@ spring:
     locations: classpath:db/migration,classpath:db/seed,classpath:db/dev-data
 
 swipread:
+  ingestion:
+    # Pas de lecture des flux en dev : SWIPREAD_INGESTION_ENABLED=true pour l'essayer
+    enabled: false
   auth:
     # Dev en HTTP : un cookie Secure ne serait pas renvoyé par tous les navigateurs
     refresh-cookie-secure: false

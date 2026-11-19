@@ -54,3 +54,11 @@ swipread:
     page-size: 10
     stock-size: 50
     refill-threshold: 20
+  ingestion:
+    # Lecture des flux des sources actives qui ont des thèmes (contrat v1.5) ; coupée en dev et en test
+    enabled: ${SWIPREAD_INGESTION_ENABLED:true}
+    interval: 15m
+    initial-delay: 1m
+    max-age: 7d
+    max-new-per-source: 30
+    user-agent: "SwipreadBot/1.0 (+https://github.com/Swipread/api)"

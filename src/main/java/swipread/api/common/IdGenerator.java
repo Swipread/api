@@ -28,6 +28,10 @@ public class IdGenerator {
         return "e_" + ulid();
     }
 
+    public String newArticleId() {
+        return "a_" + ulid();
+    }
+
     String ulid() {
         long time = clock.millis();
         byte[] entropy = new byte[10];
