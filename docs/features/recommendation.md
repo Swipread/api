@@ -1,6 +1,6 @@
 # Recommendation
 
-The API asks the recommendation service for articles and streams events to it. The full interface is the backend / recommender contract (v1.4); this page summarises what it means for this codebase. Code: `swipread.api.reco`.
+The API asks the recommendation service ([Swipread/reco](https://github.com/Swipread/reco)) for articles and streams events to it. The full interface is the backend / recommender contract (v1.5); this page summarises what it means for this codebase. Code: `swipread.api.reco`.
 
 ## Asking for recommendations
 
@@ -41,7 +41,7 @@ The client never throws: it returns a `RecommendationResult`, `Success` or `Fail
 
 ## Events stream
 
-Reader events and `user_deleted` messages are published on the Redis stream `events` through the outbox (see [Events](events.md#publication-through-the-outbox)). The recommender reads it with its own consumer group and must be idempotent on `eventId`.
+Reader events and `user_deleted` messages are published on the Redis stream `events` through the outbox (see [Events](events.md#publication-through-the-outbox)). The recommender reads it in its own consumer group, `reco`, and must be idempotent on `eventId`; it keeps each reader's profile from it and checks it against `app.events` at each request ([its flows](https://github.com/Swipread/reco/blob/main/docs/flows.md)).
 
 In development, `MockEventsConsumer` (profile `mock-reco`) plays the recommender's part: it reads the stream in the `mock-reco` consumer group, logs each message (`Mock reco received view for u_… (article a_…, event e_…)`) and acknowledges it. The group is created at startup if missing, starting from new messages; an existing group is reused. Several API instances share the group, and each removes its consumer from the group when it stops.
 

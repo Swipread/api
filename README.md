@@ -32,12 +32,12 @@ flowchart LR
     Web["<b>Web app</b><br/>Swipread/web"] -- "REST + JWT,<br/>refresh cookie" --> API["<b>Swipread API</b><br/>this repository"]
     API --> PG[(PostgreSQL + pgvector<br/>accounts, articles, events)]
     API --> Redis[(Redis<br/>feed stocks, events stream)]
-    API -- "POST /v1/recommendations<br/>300 ms timeout" --> Reco["<b>Recommender</b><br/>separate service"]
+    API -- "POST /v1/recommendations<br/>300 ms timeout" --> Reco["<b>Recommender</b><br/>Swipread/reco"]
     Redis -- "events stream" --> Reco
     API -- "ingestion<br/>every 15 min" --> Feeds["Sources<br/>RSS feeds, pages"]
 ```
 
-The [web app](https://github.com/Swipread/web) is the main client. The recommendation service ranks articles for each reader from the events this API streams to it; its interface is defined by a contract agreed between the two teams. Articles come from the RSS and Atom sources that administrators manage here: the API reads their feeds every 15 minutes and saves the new articles with the source's topics.
+The [web app](https://github.com/Swipread/web) is the main client. The [recommendation service](https://github.com/Swipread/reco) ranks articles for each reader from the events this API streams to it; its interface is defined by a contract agreed between the two teams. Articles come from the RSS and Atom sources that administrators manage here: the API reads their feeds every 15 minutes and saves the new articles with the source's topics.
 
 ![Swagger UI of the API](docs/images/swagger.png)
 
@@ -141,11 +141,11 @@ Code is organised by feature; Flyway owns the schema. → [Architecture](docs/ar
 
 ## Configuration and deployment
 
-In production the API runs without a profile and reads everything from environment variables (database, Redis, JWT secret, recommender URL, allowed origins). Version 1.0.0 is in production: a version tag on `main` runs the checks, builds the container image, deploys it and creates the GitHub release. → [Configuration](docs/configuration.md), [Deployment](docs/deployment.md#releasing)
+In production the API runs without a profile and reads everything from environment variables (database, Redis, JWT secret, recommender URL, allowed origins). Version 1.1.0 is in production: a version tag on `main` runs the checks, builds the container image, deploys it and creates the GitHub release. → [Configuration](docs/configuration.md), [Deployment](docs/deployment.md#releasing)
 
 ## Project status
 
-The user stories of the reader and admin journeys are implemented, together with the requests of the web team and a series of hardening steps (outbox, stock versioning, refresh tokens, SSRF protection). The interface with the recommender is at contract v1.4.
+The user stories of the reader and admin journeys are implemented, together with the requests of the web team and a series of hardening steps (outbox, stock versioning, refresh tokens, SSRF protection). The interface with the recommender is at contract v1.5: the recommender consumes the events stream, and the API ingests the articles. The recommender itself is not deployed yet: production serves the fallback feed.
 
 Open points, tracked in [Decisions](docs/decisions.md):
 
