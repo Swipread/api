@@ -10,6 +10,7 @@ import swipread.api.feed.TestArticles;
 import tools.jackson.databind.JsonNode;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +24,12 @@ class HistoryIntegrationTest extends IntegrationTest {
     @Autowired
     private JdbcTemplate jdbc;
 
+    // Les clients envoient des millisecondes (Date JavaScript). Sous Linux, Instant.now() a des nanosecondes
+    // que PostgreSQL arrondit à la microseconde : la date relue ne serait plus égale à la date envoyée.
+    private static Instant clientNow() {
+        return Instant.now().truncatedTo(ChronoUnit.MILLIS);
+    }
+
     @BeforeEach
     void seedArticles() {
         TestArticles.seed(jdbc, 200);
@@ -31,7 +38,7 @@ class HistoryIntegrationTest extends IntegrationTest {
     @Test
     void historyListsOpenedArticlesByLastOpening() throws Exception {
         RegisteredUser user = registerUser();
-        Instant base = Instant.now().minusSeconds(60);
+        Instant base = clientNow().minusSeconds(60);
         send(user,
                 event("open", "a_it0101", base.plusSeconds(1), null),
                 event("read", "a_it0102", base.plusSeconds(2), "{\"readMs\": 30000}"),
@@ -56,7 +63,7 @@ class HistoryIntegrationTest extends IntegrationTest {
     @Test
     void hiddenArticlesLeaveHistory() throws Exception {
         RegisteredUser user = registerUser();
-        Instant base = Instant.now().minusSeconds(60);
+        Instant base = clientNow().minusSeconds(60);
         send(user, event("open", "a_it0110", base.plusSeconds(1), null), event("open", "a_it0111", base.plusSeconds(2), null));
         send(user, event("hide", "a_it0111", base.plusSeconds(3), null));
 

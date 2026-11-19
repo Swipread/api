@@ -56,6 +56,8 @@ All classes share the same configuration, so Spring reuses one application conte
 
 Data is not cleaned between tests. Each test creates its own user (random email), and `TestArticles.seed(jdbc, n)` inserts articles idempotently. Wait for asynchronous work (stock refill, outbox relay, stream consumer) with Awaitility (`await().until(...)`), never with `Thread.sleep`.
 
+Truncate the instants you send and then compare to milliseconds (`Instant.now().truncatedTo(ChronoUnit.MILLIS)`), as real clients do. On Linux, and so in CI, `Instant.now()` has nanoseconds that PostgreSQL rounds to microseconds: the value read back would differ from the one sent, while the test passes on macOS.
+
 `TestApiApplication` starts the application with the test containers and without Docker Compose, which is handy for a quick try from the IDE.
 
 ## End-to-end scenarios (Bruno and Postman)

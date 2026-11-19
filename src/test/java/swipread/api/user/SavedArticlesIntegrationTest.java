@@ -10,6 +10,7 @@ import swipread.api.feed.TestArticles;
 import tools.jackson.databind.JsonNode;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +24,12 @@ class SavedArticlesIntegrationTest extends IntegrationTest {
     @Autowired
     private JdbcTemplate jdbc;
 
+    // Les clients envoient des millisecondes (Date JavaScript). Sous Linux, Instant.now() a des nanosecondes
+    // que PostgreSQL arrondit à la microseconde : la date relue ne serait plus égale à la date envoyée.
+    private static Instant clientNow() {
+        return Instant.now().truncatedTo(ChronoUnit.MILLIS);
+    }
+
     @BeforeEach
     void seedArticles() {
         TestArticles.seed(jdbc, 200);
@@ -31,7 +38,7 @@ class SavedArticlesIntegrationTest extends IntegrationTest {
     @Test
     void savedArticlesArePaginatedNewestFirstAndExcludeHidden() throws Exception {
         RegisteredUser user = registerUser();
-        Instant base = Instant.now().minusSeconds(60);
+        Instant base = clientNow().minusSeconds(60);
         StringBuilder events = new StringBuilder();
         for (int i = 1; i <= 5; i++) {
             events.append(event("save", "a_it000" + i, base.plusSeconds(i))).append(',');
@@ -65,7 +72,7 @@ class SavedArticlesIntegrationTest extends IntegrationTest {
                 ON CONFLICT DO NOTHING
                 """);
         RegisteredUser user = registerUser();
-        Instant base = Instant.now().minusSeconds(60);
+        Instant base = clientNow().minusSeconds(60);
         String events = String.join(",",
                 event("save", "a_it0150", base.plusSeconds(1)),
                 event("like", "a_it0150", base.plusSeconds(2)),
@@ -87,7 +94,7 @@ class SavedArticlesIntegrationTest extends IntegrationTest {
     @Test
     void unsaveRemovesArticleFromSavedAndSaveAgainRestoresIt() throws Exception {
         RegisteredUser user = registerUser();
-        Instant base = Instant.now().minusSeconds(60);
+        Instant base = clientNow().minusSeconds(60);
         send(user, event("save", "a_it0160", base.plusSeconds(1)), event("unsave", "a_it0160", base.plusSeconds(2)));
         assertThat(ids(saved(user, ""))).isEmpty();
 
