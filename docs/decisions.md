@@ -40,6 +40,10 @@ The feed check downloads an admin-supplied URL. Scheme and port are checked at e
 
 Hibernate only validates entities. Events, per-article state, the outbox and refresh tokens are written with `JdbcTemplate` to use `ON CONFLICT`, row locks and keyset pagination precisely.
 
+### ADR-11 · Ingest articles in the API, one pass at a time
+
+Contract v1.5 puts the ingestion in the backend: it reuses the source check's SSRF-safe client (`SafeHttp`), Rome and Flyway, and keeps the API the only writer of business data. Topics come from the source, chosen and ordered by the admin, rather than from a classifier: reliable when each feed is a section. `word_count` is taken from the article's page, opened once, because feeds often carry only a summary and the reading-time rule of the events depends on it; a schema.org `wordCount` is preferred to counting the page, whose text includes newsletter and "read also" blocks. A pass holds one PostgreSQL advisory lock instead of locking each source (as first planned): simpler, and two instances never read the same feeds at the same time.
+
 ### ADR-10 · Errors in English with stable codes
 
 All errors are RFC 9457 `ProblemDetail`. Validation messages are forced to English whatever the request language, and each field error carries the violated constraint (`code`), so clients translate from stable values instead of parsing text.
@@ -86,7 +90,7 @@ Choices made where the contract was silent or ambiguous, all validated as is on 
 | 13 | Renaming a topic: what happens to the slug? | The slug never changes; only the label | Recompute it and break the recommender's `fallback:{slug}` keys |
 | 14 | Deleting a topic (not requested) | No endpoint | `DELETE` only when no article or reader uses it |
 | 15 | Deleting a source that has articles | 409: deactivate it instead | Delete its articles too, erasing readers' saved lists and history |
-| 16 | Editable fields of a source | `active` only | Name and licence; a new `feedUrl` would need a new check |
+| 16 | Editable fields of a source | `active` and `topicIds` (partial `PATCH`) | Name and licence; a new `feedUrl` would need a new check |
 
 ## To confirm
 
@@ -100,4 +104,6 @@ Choices made where the contract was silent or ambiguous, all validated as is on 
 
 ## Known technical debt
 
-None at the moment: the eight items found during implementation were addressed (ADR-4 to ADR-10). Add new debt here with its risk and a way out.
+- **Sources that block robots.** Some sites answer bots with a challenge page (Le Monde, measured on 19/11/2026). The ingestion recognises it and counts the feed's summary instead, so the estimated reading time of their articles is far too short and almost any opening counts as a complete read. Way out: a licence or partner access with the publisher, or a reading-time rule that does not trust very small counts.
+
+Add new debt here with its risk and a way out.

@@ -28,7 +28,8 @@ Developer documentation for the Swipread backend. New here? Read [Getting starte
 | [Feed](features/feed.md) | Redis stock, paging, refill, fallback feed, invalidation, versioning |
 | [Events](features/events.md) | Ingestion, validation, dedup, aggregation, strong events, outbox, partitions |
 | [Recommendation](features/recommendation.md) | Recommender client and mock, events stream, what the recommendation team needs |
-| [Sources](features/sources.md) | Source administration, feed check, SSRF protection |
+| [Sources](features/sources.md) | Source administration and topics, feed check, SSRF protection |
+| [Ingestion](features/ingestion.md) | Scheduled reading of feeds and pages, word count, robots.txt, limits |
 
 ## Scenarios
 

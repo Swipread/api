@@ -6,7 +6,7 @@
 ./mvnw test
 ```
 
-Docker must be running: integration tests start their own `pgvector/pgvector:pg17` and `redis:7.4` containers through Testcontainers. The full suite (165 tests) runs in about 30 seconds once the images are pulled.
+Docker must be running: integration tests start their own `pgvector/pgvector:pg17` and `redis:7.4` containers through Testcontainers. The full suite (185 tests) runs in about 30 seconds once the images are pulled.
 
 ### Continuous integration
 
@@ -26,6 +26,8 @@ The Bruno and Postman scenarios are not run in CI: they need the API started in 
 | Unit | `SlugsTest` | Topic slugs: accents, case, punctuation |
 | Unit | `RomeFeedProbeTest` | RSS and Atom, empty feed, HTML, HTTP 404, unreachable host, external entities refused, redirects followed and checked at each hop, redirect loop, local feed refused by default, connection through the policy's resolver, rebinding refused at connection time, unknown host |
 | Unit | `FeedAddressPolicyTest` | SSRF: internal IPv4 and IPv6 ranges (including embedded IPv4 and NAT64), public addresses, ports 80/443, `http`/`https`, one internal address among several, unknown host vs forbidden address |
+| Unit | `ArticleTextTest`, `RobotsRulesTest` | Ingestion: HTML and entities, word count, summary cut, main text without nested cards, page recognition, share image, absolute URLs, schema.org word count; robots.txt groups, longest rule, wildcards and anchors |
+| Integration | `IngestionIntegrationTest` | Feed and pages served locally: words, images, topics and their confidence, robots.txt, non-HTML and challenge pages, old entries and duplicates, `ETag` and 304, 30 articles per read, failing, inactive and topic-less sources, run lock |
 | Integration | `AuthIntegrationTest` | Sign-up, login, 401/409/400 as `ProblemDetail`, English validation messages with their `code` despite `Accept-Language: fr` |
 | Integration | `RefreshTokenIntegrationTest` | HttpOnly cookie on login, 15-minute access token, rotation, 10-second grace without a new cookie, reuse revoking the family, missing/unknown/expired token, logout, account deletion, CORS with credentials, hashed storage |
 | Integration | `OnboardingIntegrationTest` | Topics, replacing choices, three-topic minimum, `/v1/me` |

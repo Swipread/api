@@ -9,11 +9,12 @@ flowchart LR
         api["REST endpoints /v1"]
         refill["Stock refill<br/>(background task)"]
         relay["Outbox relay<br/>(every 200 ms)"]
+        ingest["Ingestion<br/>(every 15 min)"]
     end
+    feeds["Sources' sites<br/>(RSS/Atom feeds, pages)"]
     pg[("PostgreSQL + pgvector<br/>schemas app and reco")]
     redis[("Redis<br/>feed stock, seen,<br/>events stream")]
     reco["Recommendation service"]
-    ingest["Ingestion<br/>(RSS feeds)"]
 
     web -- "JWT + refresh cookie" --> api
     api --> pg
@@ -24,17 +25,18 @@ flowchart LR
     reco -. "consumes events" .-> redis
     reco -- "read-only on app,<br/>read-write on reco" --> pg
     reco -- "fallback:{slug}" --> redis
-    ingest --> pg
+    ingest -- "SSRF-safe GET" --> feeds
+    ingest -- "app.articles,<br/>app.article_topics" --> pg
 ```
 
 The principles come from the backend / recommender contract:
 
 - **Ids only.** The recommender returns article ids; the API loads the content from the database.
-- **Business writes.** Only the API writes business data: accounts, topic choices, events.
+- **Business writes.** Only the API writes business data: accounts, topic choices, events, and the articles of its ingestion.
 - **Never wait.** The reader never waits for the recommender: the feed is served from a Redis stock filled in the background.
 - **Always a fallback.** Any recommender failure ends in a fallback feed.
 
-The ingestion that fills `app.sources` → `app.articles` and the recommendation service are separate components; this repository manages sources (admin), reads articles, and talks to the recommender.
+This repository manages sources (admin), ingests their articles (contract v1.5), serves them, and talks to the recommendation service, which is a separate component.
 
 ## Code organisation
 
@@ -46,7 +48,8 @@ Code is organised by feature, not by technical layer, under `swipread.api`:
 | `user` | Profile, account deletion, saved articles, history | `UserController`, `UserService`, `SavedArticleService`, `HistoryService`, `UserArticleStates`, `User` | [Account, saved and history](features/account.md) |
 | `topic` | Topics, onboarding choices, topic administration | `TopicController`, `TopicService`, `AdminTopicController`, `TopicAdminService`, `Slugs`, `UserTopicsChanged` | [Topics](features/topics.md) |
 | `article` | Reading articles (written by the ingestion) | `ArticleQueryService`, `Article`, `Source` | [Feed](features/feed.md) |
-| `source` | Source administration, feed check (Apache HttpClient 5 with a controlled DNS resolver), SSRF protection | `AdminSourceController`, `SourceAdminService`, `RomeFeedProbe`, `FeedAddressPolicy` | [Sources](features/sources.md) |
+| `source` | Source administration and topics, feed check, SSRF-safe HTTP client (Apache HttpClient 5 with a controlled DNS resolver) | `AdminSourceController`, `SourceAdminService`, `SourceTopics`, `SourceFetchState`, `RomeFeedProbe`, `SafeHttp`, `FeedAddressPolicy` | [Sources](features/sources.md) |
+| `ingestion` | Scheduled reading of the sources' feeds and article pages, saving new articles with their topics | `IngestionJob`, `IngestionService`, `FeedReader`, `PageReader`, `ArticleText`, `RobotsRules` | [Ingestion](features/ingestion.md) |
 | `feed` | Redis stock, paging, refill, fallback | `FeedService`, `FeedStore`, `FeedRefiller`, `FallbackFeedProvider`, `TopicsChangedListener` | [Feed](features/feed.md) |
 | `reco` | Recommender client, mock (recommendations and stream consumer) | `RecommendationClient`, `HttpRecommendationClient`, `MockRecommendationClient`, `MockEventsConsumer` | [Recommendation](features/recommendation.md) |
 | `event` | Event collection, aggregation and publication | `EventService`, `EventRepository`, `EventOutbox`, `OutboxRelay`, `EventStreamPublisher`, `EventPartitionJob`, `EventErasure` | [Events](features/events.md) |

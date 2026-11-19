@@ -17,7 +17,13 @@ All configuration lives in `src/main/resources/application.yaml`, overridden by 
 | `swipread.feed.page-size` | `10` | `SWIPREAD_FEED_PAGE_SIZE` | Articles per page, and articles kept on invalidation |
 | `swipread.feed.stock-size` | `50` | `SWIPREAD_FEED_STOCK_SIZE` | Maximum size of a reader's stock in Redis |
 | `swipread.feed.refill-threshold` | `20` | `SWIPREAD_FEED_REFILL_THRESHOLD` | A refill starts when fewer articles than this remain |
-| `swipread.sources.allow-local-feeds` | `false` | `SWIPREAD_SOURCES_ALLOW_LOCAL_FEEDS` | Lifts the SSRF protection of the feed check (internal addresses, ports other than 80 and 443). `true` in the `test` profile only, for feeds served locally; **never in production** |
+| `swipread.ingestion.enabled` | `true` | `SWIPREAD_INGESTION_ENABLED` | Runs the scheduled ingestion of the sources' feeds. `false` in `dev` and `test` |
+| `swipread.ingestion.interval` | `15m` | `SWIPREAD_INGESTION_INTERVAL` | Delay between the end of a pass and the start of the next one |
+| `swipread.ingestion.initial-delay` | `1m` | `SWIPREAD_INGESTION_INITIAL_DELAY` | Delay before the first pass after startup |
+| `swipread.ingestion.max-age` | `7d` | `SWIPREAD_INGESTION_MAX_AGE` | Entries published earlier are skipped |
+| `swipread.ingestion.max-new-per-source` | `30` | `SWIPREAD_INGESTION_MAX_NEW_PER_SOURCE` | New articles at most per source and per pass |
+| `swipread.ingestion.user-agent` | `SwipreadBot/1.0 (+https://github.com/Swipread/api)` | `SWIPREAD_INGESTION_USER_AGENT` | User-Agent of the ingestion; its first word is the robot name looked up in robots.txt |
+| `swipread.sources.allow-local-feeds` | `false` | `SWIPREAD_SOURCES_ALLOW_LOCAL_FEEDS` | Lifts the SSRF protection of the feed check and of the ingestion (internal addresses, ports other than 80 and 443). `true` in the `test` profile only, for feeds served locally; **never in production** |
 
 `application.yaml` reads `SWIPREAD_RECO_URL` explicitly for `swipread.reco.base-url`.
 
@@ -65,7 +71,8 @@ Also check:
 - **First administrator.** `admin@swipread.dev` only exists in `dev` and `test`. In production, promote an existing account: `UPDATE app.users SET role = 'ADMIN' WHERE email = '…'`. It takes effect at the account's next token renewal (15 minutes at most).
 - **Swagger.** Swagger UI and `/v3/api-docs` are public by default. Turn them off if needed with `SPRINGDOC_API_DOCS_ENABLED=false` and `SPRINGDOC_SWAGGER_UI_ENABLED=false`.
 - **Time zone.** The JVM time zone has no effect: dates are handled as `Instant` and SQL sessions run in UTC.
-- **Several instances.** Nothing is kept in memory between requests. The refill lock is in Redis, the outbox relay uses `FOR UPDATE SKIP LOCKED`, and the partition job uses `CREATE TABLE IF NOT EXISTS`: all of them are safe on every instance.
+- **Several instances.** Nothing is kept in memory between requests. The refill lock is in Redis, the outbox relay uses `FOR UPDATE SKIP LOCKED`, the partition job uses `CREATE TABLE IF NOT EXISTS`, and an ingestion pass holds a PostgreSQL advisory lock: all of them are safe on every instance.
+- **Outbound access.** The ingestion downloads the sources' feeds and article pages over HTTP(S), ports 80 and 443: the API needs outbound Internet access.
 - **Recommender database access.** Migration V5 creates the group role `swipread_reco` (read-only on `app` without the sensitive columns of `app.users`, read-write on `reco`, see [Database](database.md#recommender-role)). The migration user needs `CREATEROLE`; otherwise an administrator runs `CREATE ROLE swipread_reco NOLOGIN` first. Then create the login role used by the recommender, with a password that must not be committed:
 
   ```sql

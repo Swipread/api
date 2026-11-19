@@ -3,11 +3,12 @@
 | Term | Meaning |
 | --- | --- |
 | **Access token** | 15-minute HS256 JWT sent as `Authorization: Bearer …` |
-| **Contract** | The interface agreement between this API and the recommendation service, versioned (v1.4) |
+| **Contract** | The interface agreement between this API and the recommendation service, versioned (v1.5) |
 | **Dwell time** (`dwellMs`) | Time a card stayed on screen in the feed, sent with `view` |
 | **Event** | A reader interaction posted to `/v1/events` (`impression`, `view`, `open`, `read`, `like`, `unlike`, `save`, `unsave`, `share`, `hide`) |
 | **Fallback feed** | Articles served without the recommender: `fallback:{slug}` lists, then recent articles; marked `requestId = reason = "fallback"` |
 | **Fallback list** | Redis list `fallback:{slug}` of recent popular articles per topic, written by the recommender |
+| **Ingestion** | The scheduled pass that reads the active sources' feeds every 15 minutes and saves their new articles with the source's topics |
 | **Family** | All the refresh tokens descending from one login on one device; revoked together |
 | **Feed check** | Download and parsing of a new source's feed before it is saved, with SSRF protection |
 | **Grace period** | 10 seconds during which a just-rotated refresh token still works without rotation (concurrent tabs) |

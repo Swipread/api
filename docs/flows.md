@@ -137,3 +137,39 @@ sequenceDiagram
         A-->>Ad: 422 with the reason
     end
 ```
+
+## An ingestion pass
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant J as IngestionJob
+    participant S as IngestionService
+    participant DB as PostgreSQL
+    participant F as Source's site
+
+    J->>S: runOnce (every 15 min)
+    S->>DB: pg_try_advisory_lock
+    alt another instance holds it
+        S-->>J: skipped
+    else
+        S->>DB: active sources with topics
+        loop each source
+            S->>F: GET feed (If-None-Match, If-Modified-Since)
+            alt 304
+                S->>DB: last_fetched_at
+            else 200
+                S->>DB: which links are already known?
+                loop newest 30 new entries (≤ 7 days)
+                    S->>F: robots.txt (once per site), then GET page
+                    S->>S: word count (JSON-LD, else main text, else feed), image
+                    S->>DB: INSERT article + topics (1.0, 0.9, 0.8)
+                end
+                S->>DB: last_fetched_at, ETag, Last-Modified, clear last_error
+            else error
+                S->>DB: last_error
+            end
+        end
+        S->>DB: pg_advisory_unlock
+    end
+```

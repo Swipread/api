@@ -34,10 +34,10 @@ flowchart LR
     API --> Redis[(Redis<br/>feed stocks, events stream)]
     API -- "POST /v1/recommendations<br/>300 ms timeout" --> Reco["<b>Recommender</b><br/>separate service"]
     Redis -- "events stream" --> Reco
-    Ingest["Ingestion<br/>RSS feeds"] --> PG
+    API -- "ingestion<br/>every 15 min" --> Feeds["Sources<br/>RSS feeds, pages"]
 ```
 
-The [web app](https://github.com/Swipread/web) is the main client. The recommendation service ranks articles for each reader from the events this API streams to it; its interface is defined by a contract agreed between the two teams. Articles are written by a separate ingestion component from the sources administrators manage here.
+The [web app](https://github.com/Swipread/web) is the main client. The recommendation service ranks articles for each reader from the events this API streams to it; its interface is defined by a contract agreed between the two teams. Articles come from the RSS and Atom sources that administrators manage here: the API reads their feeds every 15 minutes and saves the new articles with the source's topics.
 
 ![Swagger UI of the API](docs/images/swagger.png)
 
@@ -46,11 +46,12 @@ The [web app](https://github.com/Swipread/web) is the main client. The recommend
 | Readers | Administrators | Platform |
 | --- | --- | --- |
 | Sign up, log in, stay logged in with rotating refresh tokens | Create and rename topics, with article and reader counts | Feed served from Redis, never waiting for the recommender |
-| Choose at least three topics | Add RSS/Atom sources after an automatic, SSRF-safe feed check | Fallback feed whenever the recommender fails |
+| Choose at least three topics | Add RSS/Atom sources after an automatic, SSRF-safe feed check, with one to three ordered topics | Fallback feed whenever the recommender fails |
 | An endless feed of recommended articles | Activate, deactivate or delete sources | Events stored, aggregated and streamed through a transactional outbox |
 | Like, save, share, hide, with every interaction tracked | Admin-only routes by role | OpenAPI spec with typed errors (RFC 9457 `ProblemDetail`) |
-| Saved list and reading history, cursor-paginated | | Monthly partitions of the event log, dedicated database role for the recommender |
-| Rename or delete the account, with all personal data | | 165 automated tests and an end-to-end scenario for Bruno and Postman |
+| Saved list and reading history, cursor-paginated | See each source's last read and error | Monthly partitions of the event log, dedicated database role for the recommender |
+| Rename or delete the account, with all personal data | | Ingestion every 15 minutes: new articles, word count from their page, robots.txt respected |
+| | | 185 automated tests and an end-to-end scenario for Bruno and Postman |
 
 ## How it works
 
@@ -115,14 +116,15 @@ src/main/java/swipread/api/
 ├── user/       profile, account deletion, saved list, history
 ├── topic/      topics and their administration
 ├── article/    article reads
-├── source/     source administration, feed check, SSRF protection
+├── source/     source administration and topics, feed check, SSRF-safe HTTP client
+├── ingestion/  scheduled reading of feeds and pages
 ├── feed/       Redis stock, paging, refill, fallback
 ├── reco/       recommender client and mock
 ├── event/      event ingestion, aggregation, outbox, partitions
 ├── security/   JWT, roles, CORS
 └── common/     errors, ids, OpenAPI, validation, scheduling
 src/main/resources/db/
-├── migration/  Flyway migrations V1–V7
+├── migration/  Flyway migrations V1–V8
 ├── seed/       topics and admin account (dev, test)
 └── dev-data/   sample articles (dev)
 ```
@@ -135,7 +137,7 @@ Code is organised by feature; Flyway owns the schema. → [Architecture](docs/ar
 ./mvnw test
 ```
 
-165 unit and integration tests run in about 30 seconds; integration tests start their own PostgreSQL and Redis with Testcontainers (Docker required). They run on GitHub Actions for every push and pull request. An end-to-end scenario of 49 requests exists for both Bruno and Postman. → [Testing](docs/testing.md)
+185 unit and integration tests run in about 30 seconds; integration tests start their own PostgreSQL and Redis with Testcontainers (Docker required). They run on GitHub Actions for every push and pull request. An end-to-end scenario of 49 requests exists for both Bruno and Postman. → [Testing](docs/testing.md)
 
 ## Configuration and deployment
 
@@ -155,7 +157,7 @@ Open points, tracked in [Decisions](docs/decisions.md):
 | | |
 | --- | --- |
 | **Guides** | [Getting started](docs/getting-started.md) · [Architecture](docs/architecture.md) · [API reference](docs/api.md) · [Flows](docs/flows.md) · [Database](docs/database.md) · [Configuration](docs/configuration.md) · [Testing](docs/testing.md) · [Deployment](docs/deployment.md) · [Decisions](docs/decisions.md) · [FAQ](docs/faq.md) · [Glossary](docs/glossary.md) |
-| **Modules** | [Authentication](docs/features/auth.md) · [Account, saved and history](docs/features/account.md) · [Topics](docs/features/topics.md) · [Feed](docs/features/feed.md) · [Events](docs/features/events.md) · [Recommendation](docs/features/recommendation.md) · [Sources](docs/features/sources.md) |
+| **Modules** | [Authentication](docs/features/auth.md) · [Account, saved and history](docs/features/account.md) · [Topics](docs/features/topics.md) · [Feed](docs/features/feed.md) · [Events](docs/features/events.md) · [Recommendation](docs/features/recommendation.md) · [Sources](docs/features/sources.md) · [Ingestion](docs/features/ingestion.md) |
 
 Start from the [documentation index](docs/README.md).
 

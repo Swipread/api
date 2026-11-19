@@ -46,7 +46,7 @@ No data is seeded without the `dev` or `test` profile:
 
 1. **Create the first admin.** Sign up in the web app, then, on the server, `UPDATE app.users SET role = 'ADMIN' WHERE email = '…'` (with Docker Compose: `docker compose exec postgres psql -U swipread`). Log in again: the role is read from the access token, renewed every 15 minutes at most.
 2. **Create the topics.** The topic list is empty, and readers cannot finish onboarding until topics exist. The web app lets an admin without topics reach the administration: its onboarding screen shows a « Créer les thèmes » link. `POST /v1/admin/topics` works too. Then pick your own topics.
-3. **Add sources** through the administration; the ingestion fills `app.articles` from active sources.
+3. **Add sources** through the administration, with their topics and after checking their reuse conditions; the ingestion reads them within 15 minutes and fills `app.articles` (see [Ingestion](features/ingestion.md)).
 4. **Create the recommender's login role** in the `swipread_reco` group (see [Database](database.md#recommender-role)).
 
 ## Operations
@@ -55,11 +55,11 @@ No data is seeded without the `dev` or `test` profile:
 | --- | --- |
 | Health | `GET /actuator/health` (liveness and readiness groups) for probes |
 | Scaling | Stateless: run several instances behind a load balancer. The refill lock is in Redis, the outbox relay uses `SKIP LOCKED`, the scheduled jobs are idempotent |
-| Scheduled jobs | Partitions of `app.events` (startup and 03:00 UTC), refresh token purge (03:30 UTC), outbox relay (every 200 ms), on every instance |
+| Scheduled jobs | Partitions of `app.events` (startup and 03:00 UTC), refresh token purge (03:30 UTC), outbox relay (every 200 ms), ingestion (every 15 minutes, one instance at a time through an advisory lock), on every instance |
 | Redis | Holds the feed stocks and the events stream (7 days). Losing it loses prepared stocks (rebuilt on the next page) and unconsumed stream messages; no business data |
 | PostgreSQL | Source of truth. Back it up; `app.events` grows with traffic, one partition per month |
 | Secrets | `SWIPREAD_JWT_SECRET`, database and Redis passwords. Rotating the JWT secret logs everyone out of their access token; refresh tokens keep working |
-| Logs | Standard Spring Boot logging to stdout. Recommender fallbacks are logged at `INFO`/`WARN`, refresh token reuse at `WARN` |
+| Logs | Standard Spring Boot logging to stdout. Recommender fallbacks are logged at `INFO`/`WARN`, refresh token reuse at `WARN`, one `Ingestion: …` line per pass and each failing source at `INFO` |
 | TLS | Terminate HTTPS in front of the API; keep the refresh cookie `Secure` (default) |
 
 ## Production
