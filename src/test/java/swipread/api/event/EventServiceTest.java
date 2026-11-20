@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import swipread.api.article.ArticleLength;
 import swipread.api.article.ArticleQueryService;
 import swipread.api.common.ApiException;
 import swipread.api.event.dto.EventBatchRequest;
@@ -50,7 +51,7 @@ class EventServiceTest {
         EventRequest view = event("e_1", "view", Map.of("dwellMs", 4200));
         EventRequest duplicate = event("e_2", "impression", null);
         when(repository.insertNew(eq(USER), eq("s_1"), anyList(), eq(NOW))).thenReturn(List.of(view));
-        when(articles.wordCounts(List.of("a_1"))).thenReturn(Map.of("a_1", 850));
+        when(articles.lengths(List.of("a_1"))).thenReturn(Map.of("a_1", new ArticleLength(850, false)));
 
         EventBatchResponse response = service.ingest(USER, new EventBatchRequest("s_1", List.of(view, duplicate)));
 
@@ -83,7 +84,7 @@ class EventServiceTest {
     void unknownArticleIsStoredAndPublishedButNotAggregated() {
         EventRequest open = event("e_1", "open", "a_unknown", NOW, null);
         when(repository.insertNew(anyString(), anyString(), anyList(), any())).thenReturn(List.of(open));
-        when(articles.wordCounts(anyList())).thenReturn(Map.of());
+        when(articles.lengths(anyList())).thenReturn(Map.of());
 
         service.ingest(USER, new EventBatchRequest("s_1", List.of(open)));
 
@@ -108,7 +109,7 @@ class EventServiceTest {
         EventRequest read = event("e_1", "read", "a_1", NOW, Map.of("readMs", 120_000));
         when(repository.insertNew(anyString(), anyString(), anyList(), any())).thenReturn(List.of(read));
         // 460 mots = 2 minutes estimées : 120 s dépassent largement les 60 %
-        when(articles.wordCounts(List.of("a_1"))).thenReturn(Map.of("a_1", 460));
+        when(articles.lengths(List.of("a_1"))).thenReturn(Map.of("a_1", new ArticleLength(460, false)));
 
         service.ingest(USER, new EventBatchRequest("s_1", List.of(read)));
 
@@ -116,10 +117,26 @@ class EventServiceTest {
     }
 
     @Test
+    void longReadOfAnArticleCountedOnItsSummaryNeitherInvalidatesNorSendsTheWordCount() {
+        EventRequest read = event("e_1", "read", "a_1", NOW, Map.of("readMs", 120_000));
+        when(repository.insertNew(anyString(), anyString(), anyList(), any())).thenReturn(List.of(read));
+        // 40 mots comptés sur le titre et le résumé : 120 s n'en font pas une lecture complète
+        when(articles.lengths(List.of("a_1"))).thenReturn(Map.of("a_1", new ArticleLength(40, true)));
+
+        service.ingest(USER, new EventBatchRequest("s_1", List.of(read)));
+
+        verifyNoInteractions(refiller);
+        ArgumentCaptor<EventMessage> message = ArgumentCaptor.forClass(EventMessage.class);
+        verify(outbox).enqueue(message.capture());
+        assertThat(message.getValue().payload()).containsEntry("readMs", 120_000).doesNotContainKey("articleWordCount");
+        verify(repository).applyToUserArticle(eq(USER), eq("a_1"), any());
+    }
+
+    @Test
     void shortReadDoesNotInvalidateFeed() {
         EventRequest read = event("e_1", "read", "a_1", NOW, Map.of("readMs", 5_000));
         when(repository.insertNew(anyString(), anyString(), anyList(), any())).thenReturn(List.of(read));
-        when(articles.wordCounts(List.of("a_1"))).thenReturn(Map.of("a_1", 460));
+        when(articles.lengths(List.of("a_1"))).thenReturn(Map.of("a_1", new ArticleLength(460, false)));
 
         service.ingest(USER, new EventBatchRequest("s_1", List.of(read)));
 

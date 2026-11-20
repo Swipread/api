@@ -36,6 +36,7 @@ flowchart TD
 | `language` | The source's language |
 | `image_url` | Image enclosure, `media:content` or `media:thumbnail` (Media RSS) of the entry, else the page's `og:image` or `twitter:image` |
 | `word_count` | See below; always at least 1 |
+| `word_count_from_summary` | True when the page could not be used and the feed has no content: the count is only the title and the summary |
 
 **Topics.** Each article gets its source's topics (`app.source_topics`) with confidence 1.0, 0.9 and 0.8 in the order the admin chose: the first one is its main topic for the recommender. Changing a source's topics does not change the articles already saved.
 
@@ -57,7 +58,7 @@ flowchart TD
 
 When the page cannot be used (forbidden, unreachable, not HTML, not the article), `word_count` counts the entry's content in the feed, else its title and summary.
 
-**Why it matters.** `word_count` sets the estimated reading time (`word_count` / 230 words per minute) behind the "complete read" rule of the events (`read` with `readMs` ≥ 60 % of it). A count taken from a 40-word summary makes almost any opening a complete read.
+**Why it matters.** `word_count` sets the estimated reading time (`word_count` / 230 words per minute) behind the "complete read" rule of the events (`read` with `readMs` ≥ 60 % of it). A count taken from a 40-word summary would make almost any opening a complete read: so when only the title and summary were counted, `word_count_from_summary` is true and neither the API nor the recommender infer a complete read from the count (see [Events](events.md#strong-events)).
 
 ### Measured on real feeds (19/11/2026)
 

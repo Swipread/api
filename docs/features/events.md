@@ -67,7 +67,7 @@ For each new event whose article exists, `app.user_articles` is upserted:
 `StrongEventPolicy` marks as strong: `like`, `save`, `share`, `hide`, and a `read` that is complete:
 
 - `scrollDepth > 0.8` (contract rule), **or**
-- `readMs` ≥ 60 % of the estimated reading time, `wordCount` / 230 words per minute (the web client cannot measure scrolling on a third-party site).
+- `readMs` ≥ 60 % of the estimated reading time, `wordCount` / 230 words per minute (the web client cannot measure scrolling on a third-party site). This rule is skipped for an article whose count comes from its feed summary only (`word_count_from_summary`, see [Ingestion](ingestion.md)): far too small, it would turn almost any opening into a complete read.
 
 Example: an 850-word article reads in 3 min 42 s; a `read` is strong from `readMs` = 133,044.
 
@@ -88,7 +88,7 @@ Consequences:
 - if Redis fails mid-batch, the transaction rolls back and the batch is sent again, so a message can be published twice (the recommender is idempotent on `eventId`);
 - several API instances share the outbox thanks to `SKIP LOCKED`; order is then guaranteed within a batch only.
 
-Message format (contract `version: 1`), with `articleWordCount` added to the payload:
+Message format (contract `version: 1`), with `articleWordCount` added to the payload, except for an unknown article or one counted on its summary only:
 
 ```json
 {

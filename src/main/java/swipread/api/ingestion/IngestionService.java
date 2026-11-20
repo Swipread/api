@@ -171,7 +171,8 @@ public class IngestionService {
 
     /**
      * Lit la page (hors transaction), puis enregistre l'article et ses thèmes ensemble. Le nombre de mots vient de la
-     * page, sinon du contenu du flux, et vaut au moins 1.
+     * page, sinon du contenu du flux, et vaut au moins 1 ; word_count_from_summary dit qu'il n'a été compté que sur le
+     * titre et le résumé.
      *
      * @return faux si l'adresse a été enregistrée entre-temps
      */
@@ -181,17 +182,18 @@ public class IngestionService {
         int feedWords = ArticleText.countWords(item.contentText().isEmpty()
                 ? item.title() + " " + item.summary() : item.contentText());
         int wordCount = Math.max(1, pageWords > 0 ? pageWords : feedWords);
+        boolean fromSummary = pageWords == 0 && item.contentText().isEmpty();
         String image = item.imageUrl() != null ? item.imageUrl() : page.map(PageReader.Page::imageUrl).orElse(null);
         String id = ids.newArticleId();
         Boolean inserted = transaction.execute(status -> {
             int rows = jdbc.update("""
                             INSERT INTO app.articles (id, source_id, url, title, summary, image_url, author, language,
-                                                      word_count, published_at, ingested_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                                      word_count, word_count_from_summary, published_at, ingested_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ON CONFLICT (url) DO NOTHING
                             """,
                     id, source.id(), item.url(), item.title(), item.summary(), image, item.author(), source.language(),
-                    wordCount, Timestamp.from(item.publishedAt()), Timestamp.from(now));
+                    wordCount, fromSummary, Timestamp.from(item.publishedAt()), Timestamp.from(now));
             if (rows == 0) {
                 return false;
             }

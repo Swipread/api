@@ -58,6 +58,7 @@ class IngestionIntegrationTest extends IntegrationTest {
         assertThat(first.get("language")).isEqualTo("en");
         // Mots du texte principal de la page, sans la navigation ni le pied de page ; image de la page
         assertThat(first.get("word_count")).isEqualTo(850);
+        assertThat(first.get("word_count_from_summary")).isEqualTo(false);
         assertThat(first.get("image_url")).isEqualTo(site.url("/img/page-1.jpg"));
         assertThat(((Timestamp) first.get("published_at")).toInstant())
                 .isCloseTo(Instant.now().minus(1, ChronoUnit.HOURS), within(5));
@@ -69,13 +70,16 @@ class IngestionIntegrationTest extends IntegrationTest {
         // Page interdite par robots.txt : jamais demandée, mots du contenu du flux
         assertThat(site.hits("/prive/3")).isZero();
         assertThat(article("/prive/3").get("word_count")).isEqualTo(10);
+        assertThat(article("/prive/3").get("word_count_from_summary")).isEqualTo(false);
         assertThat(article("/prive/3").get("image_url")).isEqualTo(site.url("/img/prive"));
         // Page de défi anti-robot : ni ses mots ni son image, mots du titre et du résumé
         Map<String, Object> challenge = article("/a/defi");
         assertThat(challenge.get("word_count")).isEqualTo(9);
+        assertThat(challenge.get("word_count_from_summary")).isEqualTo(true);
         assertThat(challenge.get("image_url")).isNull();
         // Pas du HTML : mots du titre et du résumé
         assertThat(article("/a/pdf").get("word_count")).isEqualTo(5);
+        assertThat(article("/a/pdf").get("word_count_from_summary")).isEqualTo(true);
         // Sans date : datée de la lecture
         assertThat(((Timestamp) article("/a/sans-date").get("published_at")).toInstant())
                 .isCloseTo(Instant.now(), within(1));

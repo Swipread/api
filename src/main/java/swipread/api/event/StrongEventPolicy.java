@@ -19,7 +19,7 @@ final class StrongEventPolicy {
     }
 
     /**
-     * @param articleWordCount longueur de l'article, null s'il est inconnu en base
+     * @param articleWordCount longueur de l'article, null s'il est inconnu en base ou compté sur son seul résumé
      */
     static boolean isStrong(EventRequest event, Integer articleWordCount) {
         return switch (EventType.of(event.type())) {

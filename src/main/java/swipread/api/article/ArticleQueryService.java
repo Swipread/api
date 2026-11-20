@@ -39,12 +39,12 @@ public class ArticleQueryService {
     }
 
     @Transactional(readOnly = true)
-    public Map<String, Integer> wordCounts(Collection<String> ids) {
+    public Map<String, ArticleLength> lengths(Collection<String> ids) {
         if (ids.isEmpty()) {
             return Map.of();
         }
-        return articles.findWordCounts(ids).stream()
-                .collect(Collectors.toMap(ArticleRepository.WordCount::getId, ArticleRepository.WordCount::getWordCount,
-                        (a, b) -> a));
+        return articles.findLengths(ids).stream()
+                .collect(Collectors.toMap(ArticleRepository.Length::getId,
+                        l -> new ArticleLength(l.getWordCount(), l.getFromSummary()), (a, b) -> a));
     }
 }

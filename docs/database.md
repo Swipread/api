@@ -18,6 +18,7 @@ Source of truth: the Flyway migrations in `src/main/resources/db/migration`. Kee
 | V7 | `app.refresh_tokens` |
 | V8 | `app.source_topics`; `app.sources.etag`, `last_modified`, `last_fetched_at`, `last_error` (ingestion); drops `reco.user_profiles` and `reco.model_runs`, created by V1 and never used |
 | V9 | Drops `app.articles.embedding` and `articles_embedding_idx`, created by V1 and never filled; `app.events.article_id` becomes `NOT NULL` and `events_type_check` restricts `type` to the ten event types |
+| V10 | `app.articles.word_count_from_summary`: the count comes from the feed's title and summary only; existing rows flagged when `word_count` does not exceed the words of their title and summary |
 
 Repeatable migrations load data: `db/seed` (8 topics and the `admin@swipread.dev` account; `dev` and `test` profiles) and `db/dev-data` (300 sample articles; `dev` only).
 
@@ -74,6 +75,7 @@ erDiagram
         text author "nullable"
         text language
         int word_count
+        boolean word_count_from_summary "V10"
         timestamptz published_at
         timestamptz ingested_at
     }
@@ -144,7 +146,7 @@ erDiagram
 | `app.user_topics` | API | Topics chosen by each reader |
 | `app.sources` | admins | Ingested RSS/Atom feeds, with their reuse licence and status; state of the last read by the ingestion (V8) |
 | `app.source_topics` | admins | One to three topics per source, in the admin's order (`position`); the source's articles inherit them (V8) |
-| `app.articles` | ingestion | Metadata, summary, word count. No embedding: the recommender computes and keeps its own (V9 dropped the unused column) |
+| `app.articles` | ingestion | Metadata, summary, word count and whether it was counted on the summary only (V10). No embedding: the recommender computes and keeps its own (V9 dropped the unused column) |
 | `app.article_topics` | ingestion | Topics of each article, inherited from its source: confidence 1.0, 0.9, 0.8 in the source's order |
 | `app.events` | API | Raw event history (`POST /v1/events`), partitioned by month. The database enforces what the API already checks: an article and a known `type` for every event (V9) |
 | `app.user_articles` | API | Per reader and article: dwell time, max scroll, like, save, hide, latest opening |

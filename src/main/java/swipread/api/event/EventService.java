@@ -2,6 +2,7 @@ package swipread.api.event;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import swipread.api.article.ArticleLength;
 import swipread.api.article.ArticleQueryService;
 import swipread.api.common.ApiException;
 import swipread.api.event.dto.EventBatchRequest;
@@ -61,14 +62,15 @@ public class EventService {
         // les événements sont enregistrés, et Redis indisponible ne fait pas échouer l'enregistrement.
         Inserted inserted = transaction.execute(status -> {
             List<EventRequest> fresh = repository.insertNew(userId, batch.sessionId(), events, receivedAt);
-            Map<String, Integer> wordCounts = articles.wordCounts(fresh.stream().map(EventRequest::articleId).toList());
+            Map<String, ArticleLength> lengths = articles.lengths(fresh.stream().map(EventRequest::articleId).toList());
             for (EventRequest event : fresh) {
-                if (wordCounts.containsKey(event.articleId())) {
+                if (lengths.containsKey(event.articleId())) {
                     repository.applyToUserArticle(userId, event.articleId(), UserArticleChange.of(event));
                 }
-                outbox.enqueue(toMessage(userId, batch.sessionId(), event, receivedAt, wordCounts.get(event.articleId())));
+                outbox.enqueue(toMessage(userId, batch.sessionId(), event, receivedAt,
+                        readingWordCount(lengths, event.articleId())));
             }
-            return new Inserted(fresh, wordCounts);
+            return new Inserted(fresh, lengths);
         });
 
         invalidateFeedIfNeeded(userId, batch.sessionId(), inserted);
@@ -89,12 +91,22 @@ public class EventService {
                 .filter(event -> EventType.of(event.type()) == EventType.HIDE)
                 .forEach(event -> feedStore.remove(userId, event.articleId()));
         if (inserted.events().stream()
-                .anyMatch(event -> StrongEventPolicy.isStrong(event, inserted.wordCounts().get(event.articleId())))) {
+                .anyMatch(event -> StrongEventPolicy.isStrong(event,
+                        readingWordCount(inserted.lengths(), event.articleId())))) {
             refiller.invalidate(userId, new FeedContext(sessionId, null));
         }
     }
 
-    private record Inserted(List<EventRequest> events, Map<String, Integer> wordCounts) {
+    /**
+     * Nombre de mots qui sert à juger une lecture complète : null si l'article est inconnu ou n'a été compté que sur son
+     * résumé, qui ne dit rien de sa vraie longueur.
+     */
+    private static Integer readingWordCount(Map<String, ArticleLength> lengths, String articleId) {
+        ArticleLength length = lengths.get(articleId);
+        return length == null ? null : length.readingWordCount();
+    }
+
+    private record Inserted(List<EventRequest> events, Map<String, ArticleLength> lengths) {
     }
 
     static EventMessage toMessage(String userId, String sessionId, EventRequest event, Instant receivedAt,

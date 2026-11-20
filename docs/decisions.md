@@ -54,6 +54,7 @@ Validated on 13/10/2026, 10/11/2026, 19/11/2026 and 20/11/2026, and reported in 
 
 | Topic | Decision | Reason |
 | --- | --- | --- |
+| Reading time of articles counted on their summary (v1.7) | V10 `app.articles.word_count_from_summary`; such an article never gives a complete read by duration, and its `articleWordCount` is left out of the stream message | A 40-word summary made almost any opening a complete read, a strong event that emptied the stock and weighed in the recommender's profile |
 | Event article and type in the database (v1.7) | Migration V9: `app.events.article_id` `NOT NULL`, `events_type_check` on `type`; `app.articles.embedding` and its HNSW index dropped | The API already rejected such events: the database now says so too. The embedding column, from the contract's first DDL, was never filled (the recommender keeps its own embeddings) |
 | Topic changes and the recommender (v1.7) | No `topics_changed` message: `PUT /v1/me/topics` only empties the stock | The recommender reads the chosen topics (`app.user_topics`) at each batch request, so the next refill already uses them |
 | Fallback feed exclusions (v1.6) | Only articles of active sources, with no age limit, and never one in the reader's `app.user_articles` | The contract only removed `seen:{userId}` (30 days) and completed with the most recent articles of any source: seen or hidden articles came back after 30 days, and a deactivated source still fed the feed, unlike the recommender |
@@ -103,6 +104,6 @@ Choices made where the contract was silent or ambiguous, all validated as is on 
 
 ## Known technical debt
 
-- **Sources that block robots.** Some sites answer bots with a challenge page (Le Monde, measured on 19/11/2026). The ingestion recognises it and counts the feed's summary instead, so the estimated reading time of their articles is far too short and almost any opening counts as a complete read. Way out: a licence or partner access with the publisher, or a reading-time rule that does not trust very small counts.
+- **Sources that block robots.** Some sites answer bots with a challenge page (Le Monde, measured on 19/11/2026). The ingestion recognises it and counts the feed's summary instead. Since V10 such articles are flagged (`word_count_from_summary`) and no complete read is inferred from their count, but the reading time the web app shows (`wordCount`) is still far too short, and only an open, not its length, tells something of the reader's interest. Way out: a licence or partner access with the publisher.
 
 Add new debt here with its risk and a way out.

@@ -13,8 +13,11 @@ public interface ArticleRepository extends JpaRepository<Article, String> {
     @Query("select a from Article a join fetch a.source where a.id in :ids")
     List<Article> findWithSourceByIdIn(Collection<String> ids);
 
-    @Query("select a.id as id, a.wordCount as wordCount from Article a where a.id in :ids")
-    List<WordCount> findWordCounts(Collection<String> ids);
+    @Query(value = """
+            SELECT id, word_count AS wordCount, word_count_from_summary AS fromSummary
+            FROM app.articles WHERE id IN (:ids)
+            """, nativeQuery = true)
+    List<Length> findLengths(Collection<String> ids);
 
     @Query(value = """
             SELECT at.article_id AS articleId, t.id AS id, t.slug AS slug, t.label AS label
@@ -35,9 +38,11 @@ public interface ArticleRepository extends JpaRepository<Article, String> {
         String getLabel();
     }
 
-    interface WordCount {
+    interface Length {
         String getId();
 
         int getWordCount();
+
+        boolean getFromSummary();
     }
 }
