@@ -106,7 +106,7 @@ Because the environment only accepts `v*` tags, a workflow started from a branch
 ### Learnt from the first release
 
 - A new package on GHCR is created **private**: the first deployment of a new image fails with `unauthorized` until an organisation owner makes it public (the package's settings → *Change visibility*). GitHub offers no API for this.
-- The image build downloads Maven through `mvnw`. Without `unzip` the wrapper fetches the `.tar.gz` distribution instead of the `.zip` CI uses, and Maven Central once answered 404 for it. Since 1.1.2 the build stage installs `unzip` (not the final image), so both fetch the same `.zip`.
+- The image build downloads Maven through `mvnw`. Without `unzip` the wrapper fetches the `.tar.gz` distribution instead of the `.zip` CI uses, and Maven Central once answered 404 for it. Since 1.2.0 the build stage installs `unzip` (not the final image), so both fetch the same `.zip`.
 
 ## Release checklist
 
