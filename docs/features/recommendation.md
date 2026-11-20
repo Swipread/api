@@ -1,6 +1,6 @@
 # Recommendation
 
-The API asks the recommendation service ([Swipread/reco](https://github.com/Swipread/reco)) for articles and streams events to it. The full interface is the backend / recommender contract (v1.6); this page summarises what it means for this codebase. Code: `swipread.api.reco`.
+The API asks the recommendation service ([Swipread/reco](https://github.com/Swipread/reco)) for articles and streams events to it. The full interface is the backend / recommender contract (v1.7); this page summarises what it means for this codebase. Code: `swipread.api.reco`.
 
 ## Asking for recommendations
 
@@ -62,7 +62,7 @@ The contract's revision history lists the changes. In short:
 - the stream entry has a single `data` field;
 - fallback keys are by slug;
 - messages arrive within about 200 ms of the request, and exceptionally twice;
-- open question: should a topic change be announced (`topics_changed`), or does the recommender read `app.user_topics` at each call?
+- a topic change publishes nothing: the recommender reads `app.user_topics` at each call (v1.7).
 
 ## Tests
 

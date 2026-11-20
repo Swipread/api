@@ -3,7 +3,7 @@
 | Term | Meaning |
 | --- | --- |
 | **Access token** | 15-minute HS256 JWT sent as `Authorization: Bearer …` |
-| **Contract** | The interface agreement between this API and the recommendation service, versioned (v1.6) |
+| **Contract** | The interface agreement between this API and the recommendation service, versioned (v1.7) |
 | **Dwell time** (`dwellMs`) | Time a card stayed on screen in the feed, sent with `view` |
 | **Event** | A reader interaction posted to `/v1/events` (`impression`, `view`, `open`, `read`, `like`, `unlike`, `save`, `unsave`, `share`, `hide`) |
 | **Fallback feed** | Articles served without the recommender: `fallback:{slug}` lists, then recent articles, only from active sources and never already seen or hidden; marked `requestId = reason = "fallback"` |
