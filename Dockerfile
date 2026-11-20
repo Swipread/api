@@ -2,6 +2,9 @@
 # Les tests ne tournent pas ici (CI) : docker build -t swipread-api .
 
 FROM eclipse-temurin:25-jdk AS build
+# unzip : le wrapper Maven télécharge alors l'archive .zip, comme la CI, et non le .tar.gz (déjà vu en 404 sur
+# Maven Central). Seulement dans l'étape de build : l'image finale n'en a pas besoin.
+RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY .mvn .mvn
 COPY mvnw pom.xml ./
