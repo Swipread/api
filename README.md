@@ -141,7 +141,7 @@ Code is organised by feature; Flyway owns the schema. → [Architecture](docs/ar
 
 ## Configuration and deployment
 
-In production the API runs without a profile and reads everything from environment variables (database, Redis, JWT secret, recommender URL, allowed origins). Version 1.2.0 is in production: a version tag on `main` runs the checks, builds the container image, deploys it and creates the GitHub release. → [Configuration](docs/configuration.md), [Deployment](docs/deployment.md#releasing)
+In production the API runs without a profile and reads everything from environment variables (database, Redis, JWT secret, recommender URL, allowed origins). Version 1.2.1 is in production (the 1.2.0 code rebuilt on Java 25.0.5.1 for CVE-2026-114938): a version tag on `main` runs the checks, builds the container image, deploys it and creates the GitHub release. → [Configuration](docs/configuration.md), [Deployment](docs/deployment.md#releasing)
 
 ## Project status
 
