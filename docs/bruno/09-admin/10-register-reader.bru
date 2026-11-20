@@ -1,0 +1,34 @@
+meta {
+  name: Register a reader
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/v1/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{readerEmail}}",
+    "password": "{{password}}",
+    "displayName": "Inactive source check"
+  }
+}
+
+script:pre-request {
+  bru.setVar("readerEmail", `smoke-reader+${Date.now()}@example.org`);
+}
+
+tests {
+  test("201 avec un token", function () {
+    expect(res.getStatus()).to.equal(201);
+    bru.setVar("readerToken", res.getBody().accessToken);
+  });
+}
+
+docs {
+  Lecteur jetable, supprimé à la fin du dossier : il vérifie que la source désactivée n'alimente plus le fil.
+}

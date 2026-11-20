@@ -1442,6 +1442,7 @@
                   "  pm.expect(sample).to.include.keys(\"id\", \"name\", \"siteUrl\", \"feedUrl\", \"language\", \"active\", \"topics\");",
                   "  pm.expect(sample.topics).to.be.an(\"array\");",
                   "  pm.collectionVariables.set(\"sampleSourceId\", sample.id);",
+                  "  pm.collectionVariables.set(\"sampleSourceName\", sample.name);",
                   "});"
                 ]
               }
@@ -1535,6 +1536,137 @@
                   "pm.test(\"200, source inactive\", function () {",
                   "  pm.response.to.have.status(200);",
                   "  pm.expect(pm.response.json().active).to.equal(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register a reader",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{readerEmail}}\",\n  \"password\": \"{{password}}\",\n  \"displayName\": \"Inactive source check\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Lecteur jetable, supprimé à la fin du dossier : il vérifie que la source désactivée n'alimente plus le fil."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"readerEmail\", `smoke-reader+${Date.now()}@example.org`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 avec un token\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.collectionVariables.set(\"readerToken\", pm.response.json().accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reader picks topics",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me/topics",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topicIds\": {{topicIds}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{readerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Feed skips the inactive source",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Session-Id",
+                "value": "{{sessionId}}"
+              },
+              {
+                "key": "X-Device",
+                "value": "desktop"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/feed",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{readerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "US17 : une source désactivée n'alimente plus le fil, ni par la reco ni par le fil de repli. Avec les seules données du profil dev, la page est vide."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200, page servie par le repli\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.response.json().items.forEach(item => pm.expect(item.reason).to.equal(\"fallback\"));",
+                  "});",
+                  "",
+                  "pm.test(\"aucun article de la source désactivée\", function () {",
+                  "  const inactive = pm.collectionVariables.get(\"sampleSourceName\");",
+                  "  pm.response.json().items.forEach(item => pm.expect(item.sourceName).to.not.equal(inactive));",
                   "});"
                 ]
               }
@@ -1658,6 +1790,37 @@
               }
             }
           ]
+        },
+        {
+          "name": "Delete the reader",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{readerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
@@ -1753,6 +1916,18 @@
     },
     {
       "key": "sampleSourceId",
+      "value": ""
+    },
+    {
+      "key": "sampleSourceName",
+      "value": ""
+    },
+    {
+      "key": "readerEmail",
+      "value": ""
+    },
+    {
+      "key": "readerToken",
       "value": ""
     }
   ]

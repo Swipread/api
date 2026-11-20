@@ -1,0 +1,27 @@
+meta {
+  name: Reader picks topics
+  type: http
+  seq: 11
+}
+
+put {
+  url: {{baseUrl}}/v1/me/topics
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{readerToken}}
+}
+
+body:json {
+  {
+    "topicIds": {{topicIds}}
+  }
+}
+
+tests {
+  test("200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

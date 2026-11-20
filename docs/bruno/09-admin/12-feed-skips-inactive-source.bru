@@ -1,0 +1,36 @@
+meta {
+  name: Feed skips the inactive source
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/v1/feed
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{readerToken}}
+}
+
+headers {
+  X-Session-Id: {{sessionId}}
+  X-Device: desktop
+}
+
+tests {
+  test("200, page servie par le repli", function () {
+    expect(res.getStatus()).to.equal(200);
+    res.getBody().items.forEach(item => expect(item.reason).to.equal("fallback"));
+  });
+
+  test("aucun article de la source désactivée", function () {
+    const inactive = bru.getVar("sampleSourceName");
+    res.getBody().items.forEach(item => expect(item.sourceName).to.not.equal(inactive));
+  });
+}
+
+docs {
+  US17 : une source désactivée n'alimente plus le fil, ni par la reco ni par le fil de repli. Avec les seules données du profil dev, la page est vide.
+}

@@ -17,5 +17,6 @@ tests {
     expect(sample).to.include.keys("id", "name", "siteUrl", "feedUrl", "language", "active", "topics");
     expect(sample.topics).to.be.an("array");
     bru.setVar("sampleSourceId", sample.id);
+    bru.setVar("sampleSourceName", sample.name);
   });
 }

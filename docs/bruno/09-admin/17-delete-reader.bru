@@ -1,0 +1,21 @@
+meta {
+  name: Delete the reader
+  type: http
+  seq: 17
+}
+
+delete {
+  url: {{baseUrl}}/v1/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{readerToken}}
+}
+
+tests {
+  test("204", function () {
+    expect(res.getStatus()).to.equal(204);
+  });
+}
