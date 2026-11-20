@@ -25,6 +25,16 @@ spring:
   threads:
     virtual:
       enabled: true
+  mail:
+    # Serveur mail de l'infra (service compose `mail`), sur le réseau interne, sans authentification
+    host: ${SWIPREAD_MAIL_HOST:mail}
+    port: ${SWIPREAD_MAIL_PORT:587}
+    properties:
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
+      # Domaine du Message-ID (sinon le nom aléatoire du conteneur)
+      mail.from: ${swipread.mail.from}
   servlet:
     multipart:
       # Aucun upload : sans analyse multipart, aucune donnée de l'utilisateur n'atteint le décodeur Base64 de
@@ -35,6 +45,11 @@ springdoc:
   default-produces-media-type: application/json
 
 management:
+  health:
+    mail:
+      # Un serveur mail injoignable ne rend pas l'API indisponible (les mails attendent dans app.mail_outbox) ;
+      # sans cela, /actuator/health passerait DOWN et un déploiement serait annulé
+      enabled: false
   endpoints:
     web:
       exposure:
@@ -59,6 +74,11 @@ swipread:
     page-size: 10
     stock-size: 50
     refill-threshold: 20
+  mail:
+    # Adresse d'expédition ; son domaine doit être celui du serveur mail (ALLOWED_SENDER_DOMAINS, DKIM)
+    from: ${SWIPREAD_MAIL_FROM}
+    from-name: Swipread
+    relay-interval: 5s
   ingestion:
     # Lecture des flux des sources actives qui ont des thèmes (contrat v1.5) ; coupée en dev et en test
     enabled: ${SWIPREAD_INGESTION_ENABLED:true}

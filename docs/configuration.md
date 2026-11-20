@@ -23,9 +23,13 @@ All configuration lives in `src/main/resources/application.yaml`, overridden by 
 | `swipread.ingestion.max-age` | `7d` | `SWIPREAD_INGESTION_MAX_AGE` | Entries published earlier are skipped |
 | `swipread.ingestion.max-new-per-source` | `30` | `SWIPREAD_INGESTION_MAX_NEW_PER_SOURCE` | New articles at most per source and per pass |
 | `swipread.ingestion.user-agent` | `SwipreadBot/1.0 (+https://github.com/Swipread/api)` | `SWIPREAD_INGESTION_USER_AGENT` | User-Agent of the ingestion; its first word is the robot name looked up in robots.txt |
+| `swipread.mail.from` | none (required) | `SWIPREAD_MAIL_FROM` | Sender of the API's mails; its domain must be the one the mail server accepts and signs. `noreply@swipread.local` in `dev`, `noreply@swipread.test` in `test` |
+| `swipread.mail.from-name` | `Swipread` | `SWIPREAD_MAIL_FROM_NAME` | Sender name |
+| `swipread.mail.relay-interval` | `5s` | `SWIPREAD_MAIL_RELAY_INTERVAL` | Delay between two runs of the mail relay (`200ms` in `test`) |
+| `spring.mail.host`, `spring.mail.port` | `mail`, `587` | `SWIPREAD_MAIL_HOST`, `SWIPREAD_MAIL_PORT` | SMTP server, without authentication (internal network). Mailpit `localhost:1025` in `dev`, a test container in `test` |
 | `swipread.sources.allow-local-feeds` | `false` | `SWIPREAD_SOURCES_ALLOW_LOCAL_FEEDS` | Lifts the SSRF protection of the feed check and of the ingestion (internal addresses, ports other than 80 and 443). `true` in the `test` profile only, for feeds served locally; **never in production** |
 
-`application.yaml` reads `SWIPREAD_RECO_URL` explicitly for `swipread.reco.base-url`.
+`application.yaml` reads `SWIPREAD_RECO_URL` explicitly for `swipread.reco.base-url`, and `SWIPREAD_MAIL_HOST`, `SWIPREAD_MAIL_PORT` for `spring.mail.*`.
 
 The feed sizes and the recommender timeout come from the contract with the recommendation team: discuss with them before changing them. The Redis key lifetimes (6 h, 5 s, 30 days, 7 days) are contract constants in `FeedStore` and `EventStreamPublisher`.
 
@@ -41,12 +45,14 @@ The feed sizes and the recommender timeout come from the contract with the recom
 | `spring.servlet.multipart.enabled` | `false` | No multipart parsing: the API has no upload, and the parsing would hand part headers to `java.util.Base64` before authentication (CVE-2026-114938) |
 | `spring.docker.compose.enabled` | `false` (`true` in `dev`) | Docker Compose in development only |
 | `management.endpoints.web.exposure.include` | `health,info` | Only these Actuator endpoints are exposed |
+| `management.health.mail.enabled` | `false` | Mails wait in `app.mail_outbox`: an unreachable mail server must not make the API unhealthy (a deployment would be rolled back) |
+| `spring.mail.properties.mail.from` | `swipread.mail.from` | Domain of the `Message-ID`, instead of the container's name |
 
 ## Profiles
 
 | Profile | File | Content |
 | --- | --- | --- |
-| `dev` | `application-dev.yaml` | Docker Compose (`start-only`), dev JWT key, CORS for the web dev server, non-`Secure` cookie, migrations + `db/seed` + `db/dev-data` |
+| `dev` | `application-dev.yaml` | Docker Compose (`start-only`), Mailpit as mail server, dev JWT key, CORS for the web dev server, non-`Secure` cookie, migrations + `db/seed` + `db/dev-data` |
 | `test` | `application-test.yaml` | Test JWT key, CORS for the web dev server, non-`Secure` cookie, local feeds allowed, migrations + `db/seed` |
 | `mock-reco` | none | Enables `MockRecommendationClient` and `MockEventsConsumer`; included by `dev` and `test` |
 
@@ -64,6 +70,8 @@ Start without any profile and provide at least:
 | `SWIPREAD_JWT_SECRET` | 32 random characters or more, e.g. `openssl rand -base64 48` |
 | `SWIPREAD_RECO_URL` | Internal URL of the recommendation service |
 | `SWIPREAD_CORS_ALLOWED_ORIGINS` | The web app's origin, e.g. `https://app.example.com`. CORS allows credentials (the refresh cookie), so origins must be explicit, never `*` |
+| `SWIPREAD_MAIL_FROM` | `noreply@<the mail domain>`. Without it the API does not start |
+| `SWIPREAD_MAIL_HOST` (+ `SWIPREAD_MAIL_PORT`) | The SMTP server, if not `mail:587` |
 
 Also check:
 
@@ -72,7 +80,7 @@ Also check:
 - **First administrator.** `admin@swipread.dev` only exists in `dev` and `test`. In production, promote an existing account: `UPDATE app.users SET role = 'ADMIN' WHERE email = '…'`. It takes effect at the account's next token renewal (15 minutes at most).
 - **Swagger.** Swagger UI and `/v3/api-docs` are public by default. Turn them off if needed with `SPRINGDOC_API_DOCS_ENABLED=false` and `SPRINGDOC_SWAGGER_UI_ENABLED=false`.
 - **Time zone.** The JVM time zone has no effect: dates are handled as `Instant` and SQL sessions run in UTC.
-- **Several instances.** Nothing is kept in memory between requests. The refill lock is in Redis, the outbox relay uses `FOR UPDATE SKIP LOCKED`, the partition job uses `CREATE TABLE IF NOT EXISTS`, and an ingestion pass holds a PostgreSQL advisory lock: all of them are safe on every instance.
+- **Several instances.** Nothing is kept in memory between requests. The refill lock is in Redis, the outbox and mail relays use `FOR UPDATE SKIP LOCKED`, the partition job uses `CREATE TABLE IF NOT EXISTS`, and an ingestion pass holds a PostgreSQL advisory lock: all of them are safe on every instance.
 - **Outbound access.** The ingestion downloads the sources' feeds and article pages over HTTP(S), ports 80 and 443: the API needs outbound Internet access.
 - **Recommender database access.** Migration V5 creates the group role `swipread_reco` (read-only on `app` without the sensitive columns of `app.users`, read-write on `reco`, see [Database](database.md#recommender-role)). The migration user needs `CREATEROLE`; otherwise an administrator runs `CREATE ROLE swipread_reco NOLOGIN` first. Then create the login role used by the recommender, with a password that must not be committed:
 

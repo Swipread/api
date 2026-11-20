@@ -13,7 +13,7 @@
 
 The **`dev`** profile is required. It:
 
-- starts PostgreSQL (`pgvector/pgvector:pg17`) and Redis (`redis:7.4`) through `compose.yaml`;
+- starts PostgreSQL (`pgvector/pgvector:pg17`), Redis (`redis:7.4`) and Mailpit (a fake mail server: the API's mails show at <http://localhost:8025>, nothing is sent) through `compose.yaml`;
 - provides a development JWT signing key;
 - loads sample data: 8 topics, 300 articles and an admin account;
 - enables the fake recommendation service (`mock-reco` profile);

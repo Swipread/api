@@ -30,6 +30,7 @@ Developer documentation for the Swipread backend. New here? Read [Getting starte
 | [Recommendation](features/recommendation.md) | Recommender client and mock, events stream, what the recommendation team needs |
 | [Sources](features/sources.md) | Source administration and topics, feed check, SSRF protection |
 | [Ingestion](features/ingestion.md) | Scheduled reading of feeds and pages, word count, robots.txt, limits |
+| [Mail](features/mail.md) | Outbox, SMTP relay with retries, mail template, Mailpit in development |
 
 ## Scenarios
 

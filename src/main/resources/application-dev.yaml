@@ -5,6 +5,10 @@ spring:
       lifecycle-management: start-only
   flyway:
     locations: classpath:db/migration,classpath:db/seed,classpath:db/dev-data
+  mail:
+    # Mailpit du compose de dev : les mails s'affichent sur http://localhost:8025
+    host: localhost
+    port: 1025
 
 swipread:
   ingestion:
@@ -16,6 +20,8 @@ swipread:
   cors:
     # Serveur de dev du frontend (Vite)
     allowed-origins: http://localhost:5173
+  mail:
+    from: noreply@swipread.local
   jwt:
     # Clé de dev uniquement, jamais utilisée hors profil dev
     secret: dev-secret-change-me-dev-secret-change-me-0123456789

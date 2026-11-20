@@ -6,7 +6,7 @@
 ./mvnw test
 ```
 
-Docker must be running: integration tests start their own `pgvector/pgvector:pg17` and `redis:7.4` containers through Testcontainers. The full suite (185 tests) runs in about 30 seconds once the images are pulled.
+Docker must be running: integration tests start their own `pgvector/pgvector:pg17`, `redis:7.4` and `axllent/mailpit` containers through Testcontainers. The full suite (205 tests) runs in about 30 seconds once the images are pulled.
 
 ### Continuous integration
 

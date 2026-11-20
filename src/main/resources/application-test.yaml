@@ -11,6 +11,10 @@ swipread:
   cors:
     # Serveur de dev du frontend (Vite)
     allowed-origins: http://localhost:5173
+  mail:
+    # Le serveur SMTP (Mailpit) est un conteneur de test : voir TestcontainersConfiguration
+    from: noreply@swipread.test
+    relay-interval: 200ms
   jwt:
     secret: test-secret-test-secret-test-secret-test-secret-0123
   sources:

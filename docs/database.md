@@ -19,6 +19,7 @@ Source of truth: the Flyway migrations in `src/main/resources/db/migration`. Kee
 | V8 | `app.source_topics`; `app.sources.etag`, `last_modified`, `last_fetched_at`, `last_error` (ingestion); drops `reco.user_profiles` and `reco.model_runs`, created by V1 and never used |
 | V9 | Drops `app.articles.embedding` and `articles_embedding_idx`, created by V1 and never filled; `app.events.article_id` becomes `NOT NULL` and `events_type_check` restricts `type` to the ten event types |
 | V10 | `app.articles.word_count_from_summary`: the count comes from the feed's title and summary only; existing rows flagged when `word_count` does not exceed the words of their title and summary |
+| V11 | `app.mail_outbox`: mails waiting to be sent, with their attempts |
 
 Repeatable migrations load data: `db/seed` (8 topics and the `admin@swipread.dev` account; `dev` and `test` profiles) and `db/dev-data` (300 sample articles; `dev` only).
 
@@ -112,6 +113,18 @@ erDiagram
         text message "JSON published on the stream"
         timestamptz created_at
     }
+    app_mail_outbox {
+        bigserial id PK
+        text recipient
+        text subject
+        text text_body
+        text html_body
+        timestamptz created_at
+        int attempts
+        timestamptz next_attempt_at
+        text last_error "nullable"
+        timestamptz failed_at "nullable: given up"
+    }
     app_refresh_tokens {
         uuid id PK
         text user_id FK
@@ -151,6 +164,7 @@ erDiagram
 | `app.events` | API | Raw event history (`POST /v1/events`), partitioned by month. The database enforces what the API already checks: an article and a known `type` for every event (V9) |
 | `app.user_articles` | API | Per reader and article: dwell time, max scroll, like, save, hide, latest opening |
 | `app.event_outbox` | API | Stream messages waiting to be published, deleted once published; internal |
+| `app.mail_outbox` | API | Mails waiting to be sent, deleted once sent; given up after 8 attempts and deleted a week later (V11); internal |
 | `app.refresh_tokens` | API | Hashed refresh tokens with their family, expiry, revocation and replacement; internal |
 
 `app.events` is the source of truth: `app.user_articles`, and the recommender's reader profiles, can be rebuilt from it.
@@ -192,7 +206,7 @@ Migration V5 creates the group role `swipread_reco`, **without login**:
 
 | Schema | Privileges |
 | --- | --- |
-| `app` | `SELECT` on every table, including tables created later by the API (default privileges: future migrations, monthly partitions of `app.events`). On `app.users`, only `id`, `locale` and `created_at`: no email, password hash or display name. No access to `app.event_outbox` and `app.refresh_tokens` |
+| `app` | `SELECT` on every table, including tables created later by the API (default privileges: future migrations, monthly partitions of `app.events`). On `app.users`, only `id`, `locale` and `created_at`: no email, password hash or display name. No access to `app.event_outbox`, `app.mail_outbox` and `app.refresh_tokens` |
 | `reco` | Read-write on tables and sequences, and `CREATE` on the schema |
 
 The login role the recommender connects with is created by operations and joined to this group (see [Configuration](configuration.md#production-checklist)). A PostgreSQL role is global to the server: if `swipread_reco` does not exist and the migration user lacks `CREATEROLE`, V5 fails with an explicit message, and an administrator must run `CREATE ROLE swipread_reco NOLOGIN` first.

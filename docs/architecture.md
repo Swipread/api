@@ -53,6 +53,7 @@ Code is organised by feature, not by technical layer, under `swipread.api`:
 | `feed` | Redis stock, paging, refill, fallback | `FeedService`, `FeedStore`, `FeedRefiller`, `FallbackFeedProvider`, `TopicsChangedListener` | [Feed](features/feed.md) |
 | `reco` | Recommender client, mock (recommendations and stream consumer) | `RecommendationClient`, `HttpRecommendationClient`, `MockRecommendationClient`, `MockEventsConsumer` | [Recommendation](features/recommendation.md) |
 | `event` | Event collection, aggregation and publication | `EventService`, `EventRepository`, `EventOutbox`, `OutboxRelay`, `EventStreamPublisher`, `EventPartitionJob`, `EventErasure` | [Events](features/events.md) |
+| `mail` | Mails: outbox, SMTP relay with retries, common template | `MailOutbox`, `MailRelay`, `MailTemplate`, `MailMessage`, `MailProperties` | [Mail](features/mail.md) |
 | `security` | JWT, roles, CORS, Spring Security setup | `SecurityConfig`, `JwtService`, `CorsProperties`, `@CurrentUserId` | below |
 | `common` | Cross-cutting | `ApiExceptionHandler`, `ApiException`, `IdGenerator`, `OpenApiConfig`, `ValidationConfig`, `ClockConfig`, `SchedulingConfig` | below |
 

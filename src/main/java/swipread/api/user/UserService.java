@@ -6,6 +6,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import swipread.api.common.ApiException;
 import swipread.api.event.EventErasure;
 import swipread.api.feed.FeedStore;
+import swipread.api.mail.MailOutbox;
 import swipread.api.topic.TopicService;
 import swipread.api.user.dto.MeResponse;
 import swipread.api.user.dto.UpdateMeRequest;
@@ -18,14 +19,16 @@ public class UserService {
     private final EventErasure eventErasure;
     private final FeedStore feedStore;
     private final TransactionTemplate transaction;
+    private final MailOutbox mailOutbox;
 
     public UserService(UserRepository users, TopicService topicService, EventErasure eventErasure, FeedStore feedStore,
-                       TransactionTemplate transaction) {
+                       TransactionTemplate transaction, MailOutbox mailOutbox) {
         this.users = users;
         this.topicService = topicService;
         this.eventErasure = eventErasure;
         this.feedStore = feedStore;
         this.transaction = transaction;
+        this.mailOutbox = mailOutbox;
     }
 
     @Transactional(readOnly = true)
@@ -53,6 +56,7 @@ public class UserService {
         transaction.executeWithoutResult(status -> {
             User user = get(userId);
             eventErasure.eraseUser(userId);
+            mailOutbox.forget(user.getEmail());
             users.delete(user);
         });
         // Après le commit, pour ne rien effacer si la suppression échoue. Un remplissage déjà lancé peut recréer le
