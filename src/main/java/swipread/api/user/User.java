@@ -35,6 +35,9 @@ public class User {
     @Column(nullable = false)
     private Role role = Role.READER;
 
+    @Column(name = "email_verified_at")
+    private Instant emailVerifiedAt;
+
     protected User() {
     }
 
@@ -77,6 +80,19 @@ public class User {
 
     public void rename(String displayName) {
         this.displayName = displayName;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerifiedAt != null;
+    }
+
+    /**
+     * Première confirmation de l'adresse ; les suivantes ne changent pas la date.
+     */
+    public void markEmailVerified(Instant at) {
+        if (emailVerifiedAt == null) {
+            emailVerifiedAt = at;
+        }
     }
 
     public void changePasswordHash(String passwordHash) {

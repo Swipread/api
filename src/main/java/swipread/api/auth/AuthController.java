@@ -23,6 +23,7 @@ import swipread.api.auth.dto.ChangePasswordRequest;
 import swipread.api.auth.dto.LoginRequest;
 import swipread.api.auth.dto.RegisterRequest;
 import swipread.api.auth.dto.TokenResponse;
+import swipread.api.auth.dto.VerifyEmailRequest;
 import swipread.api.common.ApiException;
 import swipread.api.common.OpenApiConfig;
 import swipread.api.security.CurrentUserId;
@@ -38,17 +39,22 @@ class AuthController {
     private final AuthService authService;
     private final RefreshTokenService refreshTokens;
     private final RefreshCookies cookies;
+    private final EmailVerificationService emailVerification;
 
-    AuthController(AuthService authService, RefreshTokenService refreshTokens, RefreshCookies cookies) {
+    AuthController(AuthService authService, RefreshTokenService refreshTokens, RefreshCookies cookies,
+                   EmailVerificationService emailVerification) {
         this.authService = authService;
         this.refreshTokens = refreshTokens;
         this.cookies = cookies;
+        this.emailVerification = emailVerification;
     }
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create an account and return an access token",
-            description = "Also sets the refresh token cookie (`swipread_refresh`, HttpOnly, path /v1/auth).")
+            description = """
+                    Also sets the refresh token cookie (`swipread_refresh`, HttpOnly, path /v1/auth), and sends a mail \
+                    with a link to confirm the address (valid 24 hours).""")
     @ApiResponse(responseCode = "201", useReturnTypeSchema = true)
     @ApiResponse(responseCode = "409", description = "Email already registered")
     TokenResponse register(@Valid @RequestBody RegisterRequest request, HttpServletResponse response) {
@@ -102,6 +108,18 @@ class AuthController {
             refreshTokens.revoke(token);
         }
         response.addHeader(HttpHeaders.SET_COOKIE, cookies.clear());
+    }
+
+    @PostMapping("/email/verify")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Confirm the email address with the link sent by mail",
+            description = """
+                    `token` is the `token` parameter of the link. Public: the link may be opened on another device or \
+                    after logging out. The token works once and for 24 hours; a newer link replaces it.""")
+    @ApiResponse(responseCode = "204", description = "Address confirmed (also if it already was)")
+    @ApiResponse(responseCode = "400", description = "Unknown, used, replaced or expired link")
+    void verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        emailVerification.verify(request.token());
     }
 
     @PutMapping("/password")

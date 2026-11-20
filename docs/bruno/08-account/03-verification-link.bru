@@ -1,0 +1,20 @@
+meta {
+  name: Verification link in the mail
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{mailpitUrl}}/api/v1/message/{{verificationMailId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("lien /verifier-email avec un token", function () {
+    expect(res.getStatus()).to.equal(200);
+    const match = res.getBody().Text.match(/\/verifier-email\?token=([A-Za-z0-9_-]+)/);
+    expect(match).to.not.equal(null);
+    bru.setVar("verificationToken", match[1]);
+  });
+}

@@ -1,6 +1,6 @@
 # Mail
 
-Mails sent by the API: address verification, forgotten password and password change notice (coming with the next features). Code: `swipread.api.mail`.
+Mails sent by the API: address verification at sign-up and on request, password change notice ([Authentication](auth.md)), and soon the forgotten password link. Code: `swipread.api.mail`.
 
 ## How a mail leaves
 

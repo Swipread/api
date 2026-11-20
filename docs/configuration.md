@@ -23,9 +23,10 @@ All configuration lives in `src/main/resources/application.yaml`, overridden by 
 | `swipread.ingestion.max-age` | `7d` | `SWIPREAD_INGESTION_MAX_AGE` | Entries published earlier are skipped |
 | `swipread.ingestion.max-new-per-source` | `30` | `SWIPREAD_INGESTION_MAX_NEW_PER_SOURCE` | New articles at most per source and per pass |
 | `swipread.ingestion.user-agent` | `SwipreadBot/1.0 (+https://github.com/Swipread/api)` | `SWIPREAD_INGESTION_USER_AGENT` | User-Agent of the ingestion; its first word is the robot name looked up in robots.txt |
+| `swipread.web.base-url` | none (required) | `SWIPREAD_WEB_URL` | Web app address, for the links sent by mail (`/verifier-email?token=…`). `http://localhost:5173` in `dev`, `https://swipread.test` in `test` |
 | `swipread.mail.from` | none (required) | `SWIPREAD_MAIL_FROM` | Sender of the API's mails; its domain must be the one the mail server accepts and signs. `noreply@swipread.local` in `dev`, `noreply@swipread.test` in `test` |
 | `swipread.mail.from-name` | `Swipread` | `SWIPREAD_MAIL_FROM_NAME` | Sender name |
-| `swipread.mail.relay-interval` | `5s` | `SWIPREAD_MAIL_RELAY_INTERVAL` | Delay between two runs of the mail relay (`200ms` in `test`) |
+| `swipread.mail.relay-interval` | `5s` | `SWIPREAD_MAIL_RELAY_INTERVAL` | Delay between two runs of the mail relay (`1s` in `dev`, so the Bruno and Postman scenarios find their mails quickly; `200ms` in `test`) |
 | `spring.mail.host`, `spring.mail.port` | `mail`, `587` | `SWIPREAD_MAIL_HOST`, `SWIPREAD_MAIL_PORT` | SMTP server, without authentication (internal network). Mailpit `localhost:1025` in `dev`, a test container in `test` |
 | `swipread.sources.allow-local-feeds` | `false` | `SWIPREAD_SOURCES_ALLOW_LOCAL_FEEDS` | Lifts the SSRF protection of the feed check and of the ingestion (internal addresses, ports other than 80 and 443). `true` in the `test` profile only, for feeds served locally; **never in production** |
 
@@ -71,6 +72,7 @@ Start without any profile and provide at least:
 | `SWIPREAD_RECO_URL` | Internal URL of the recommendation service |
 | `SWIPREAD_CORS_ALLOWED_ORIGINS` | The web app's origin, e.g. `https://app.example.com`. CORS allows credentials (the refresh cookie), so origins must be explicit, never `*` |
 | `SWIPREAD_MAIL_FROM` | `noreply@<the mail domain>`. Without it the API does not start |
+| `SWIPREAD_WEB_URL` | The web app's address, e.g. `https://app.example.com`, used in the links sent by mail. Without it the API does not start |
 | `SWIPREAD_MAIL_HOST` (+ `SWIPREAD_MAIL_PORT`) | The SMTP server, if not `mail:587` |
 
 Also check:

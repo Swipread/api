@@ -66,6 +66,6 @@ public class UserService {
 
     private MeResponse toResponse(User user) {
         return new MeResponse(user.getId(), user.getEmail(), user.getDisplayName(), user.getLocale(),
-                user.getCreatedAt(), user.getRole(), topicService.listForUser(user.getId()));
+                user.getCreatedAt(), user.getRole(), user.isEmailVerified(), topicService.listForUser(user.getId()));
     }
 }

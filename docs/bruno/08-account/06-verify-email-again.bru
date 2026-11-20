@@ -1,0 +1,23 @@
+meta {
+  name: Verify email with a used link (400)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/v1/auth/email/verify
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "token": "{{verificationToken}}"
+  }
+}
+
+tests {
+  test("400, un lien ne sert qu'une fois", function () {
+    expect(res.getStatus()).to.equal(400);
+  });
+}

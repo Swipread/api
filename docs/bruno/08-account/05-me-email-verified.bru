@@ -1,0 +1,18 @@
+meta {
+  name: Me shows the address confirmed
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/v1/me
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("emailVerified vrai", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().emailVerified).to.equal(true);
+  });
+}

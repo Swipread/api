@@ -49,6 +49,10 @@ public class ApiException extends RuntimeException {
         return new ApiException(HttpStatus.CONFLICT, "Conflict", detail);
     }
 
+    public static ApiException tooManyRequests(String detail) {
+        return new ApiException(HttpStatus.TOO_MANY_REQUESTS, "Too many requests", detail);
+    }
+
     public static ApiException unprocessable(String detail) {
         return new ApiException(HttpStatus.valueOf(422), "Unprocessable content", detail);
     }

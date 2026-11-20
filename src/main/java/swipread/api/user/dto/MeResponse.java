@@ -9,5 +9,7 @@ import java.util.List;
 
 public record MeResponse(String id, String email, String displayName, String locale, Instant createdAt,
                          @Schema(description = "ADMIN gives access to /v1/admin endpoints") Role role,
+                         @Schema(description = "The reader clicked the link sent to their email address")
+                         boolean emailVerified,
                          List<TopicResponse> topics) {
 }

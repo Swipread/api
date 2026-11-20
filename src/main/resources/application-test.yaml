@@ -11,6 +11,8 @@ swipread:
   cors:
     # Serveur de dev du frontend (Vite)
     allowed-origins: http://localhost:5173
+  web:
+    base-url: https://swipread.test
   mail:
     # Le serveur SMTP (Mailpit) est un conteneur de test : voir TestcontainersConfiguration
     from: noreply@swipread.test

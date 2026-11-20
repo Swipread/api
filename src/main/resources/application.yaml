@@ -74,6 +74,9 @@ swipread:
     page-size: 10
     stock-size: 50
     refill-threshold: 20
+  web:
+    # Adresse du web, pour les liens envoyés par mail (vérification de l'adresse, mot de passe oublié)
+    base-url: ${SWIPREAD_WEB_URL}
   mail:
     # Adresse d'expédition ; son domaine doit être celui du serveur mail (ALLOWED_SENDER_DOMAINS, DKIM)
     from: ${SWIPREAD_MAIL_FROM}

@@ -11,11 +11,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import swipread.api.auth.EmailVerificationService;
 import swipread.api.security.CurrentUserId;
 import swipread.api.user.dto.HistoryPageResponse;
 import swipread.api.user.dto.MeResponse;
@@ -30,11 +32,14 @@ class UserController {
     private final UserService userService;
     private final SavedArticleService savedArticleService;
     private final HistoryService historyService;
+    private final EmailVerificationService emailVerification;
 
-    UserController(UserService userService, SavedArticleService savedArticleService, HistoryService historyService) {
+    UserController(UserService userService, SavedArticleService savedArticleService, HistoryService historyService,
+                   EmailVerificationService emailVerification) {
         this.userService = userService;
         this.savedArticleService = savedArticleService;
         this.historyService = historyService;
+        this.emailVerification = emailVerification;
     }
 
     @GetMapping
@@ -47,6 +52,17 @@ class UserController {
     @Operation(summary = "Update the current user profile")
     MeResponse update(@CurrentUserId String userId, @Valid @RequestBody UpdateMeRequest request) {
         return userService.update(userId, request);
+    }
+
+    @PostMapping("/verification-email")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(summary = "Send a new link to confirm the email address",
+            description = "Previous links stop working. At most one per minute and five per day.")
+    @ApiResponse(responseCode = "202", description = "Mail queued")
+    @ApiResponse(responseCode = "409", description = "Email address already verified")
+    @ApiResponse(responseCode = "429", description = "A link was sent less than a minute ago, or five today")
+    void resendVerification(@CurrentUserId String userId) {
+        emailVerification.resend(userId);
     }
 
     @DeleteMapping

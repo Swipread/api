@@ -1,0 +1,32 @@
+meta {
+  name: Verification mail received (Mailpit)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{mailpitUrl}}/api/v1/search?query={{mailQuery}}
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  // Encodée : le + des adresses de test serait lu comme une espace
+  bru.setVar("mailQuery", encodeURIComponent(`to:"${bru.getVar("email")}" subject:"Confirmez votre adresse e-mail"`));
+  // Le relais des mails passe toutes les secondes en dev
+  await new Promise(resolve => setTimeout(resolve, 2000));
+}
+
+tests {
+  test("un mail de confirmation reçu par Mailpit", function () {
+    expect(res.getStatus()).to.equal(200);
+    const messages = res.getBody().messages;
+    expect(messages).to.have.lengthOf(1);
+    expect(messages[0].From.Address).to.match(/^noreply@/);
+    bru.setVar("verificationMailId", messages[0].ID);
+  });
+}
+
+docs {
+  Lit le mail envoyé à l'inscription dans le Mailpit du compose de dev (http://localhost:8025).
+}

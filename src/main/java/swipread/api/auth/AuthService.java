@@ -10,6 +10,7 @@ import swipread.api.auth.dto.RegisterRequest;
 import swipread.api.auth.dto.TokenResponse;
 import swipread.api.common.ApiException;
 import swipread.api.common.IdGenerator;
+import swipread.api.mail.MailOutbox;
 import swipread.api.security.JwtService;
 import swipread.api.user.User;
 import swipread.api.user.UserRepository;
@@ -29,17 +30,24 @@ public class AuthService {
     private final IdGenerator idGenerator;
     private final Clock clock;
     private final RefreshTokenService refreshTokens;
+    private final EmailVerificationService emailVerification;
+    private final MailOutbox mailOutbox;
+    private final AccountMails mails;
     // Hash factice pour que le temps de réponse ne révèle pas si l'email existe
     private final String dummyHash;
 
     public AuthService(UserRepository users, PasswordEncoder passwordEncoder, JwtService jwtService,
-                       IdGenerator idGenerator, Clock clock, RefreshTokenService refreshTokens) {
+                       IdGenerator idGenerator, Clock clock, RefreshTokenService refreshTokens,
+                       EmailVerificationService emailVerification, MailOutbox mailOutbox, AccountMails mails) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.idGenerator = idGenerator;
         this.clock = clock;
         this.refreshTokens = refreshTokens;
+        this.emailVerification = emailVerification;
+        this.mailOutbox = mailOutbox;
+        this.mails = mails;
         this.dummyHash = passwordEncoder.encode("dummy-password");
     }
 
@@ -57,6 +65,7 @@ public class AuthService {
         } catch (DataIntegrityViolationException e) {
             throw ApiException.conflict("Email already registered");
         }
+        emailVerification.sendLink(user);
         return tokenFor(user);
     }
 
@@ -87,6 +96,7 @@ public class AuthService {
         }
         user.changePasswordHash(passwordEncoder.encode(request.newPassword()));
         refreshTokens.revokeOtherSessions(userId, presentedRefreshToken);
+        mailOutbox.enqueue(mails.passwordChanged(user, clock.instant()));
     }
 
     /**

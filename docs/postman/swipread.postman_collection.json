@@ -1224,6 +1224,161 @@
           ]
         },
         {
+          "name": "Verification mail received (Mailpit)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{mailpitUrl}}/api/v1/search?query={{mailQuery}}",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Encodée : le + des adresses de test serait lu comme une espace",
+                  "pm.collectionVariables.set(\"mailQuery\", encodeURIComponent(`to:\"${pm.collectionVariables.get(\"email\")}\" subject:\"Confirmez votre adresse e-mail\"`));",
+                  "// Le relais des mails passe toutes les secondes en dev",
+                  "setTimeout(function () {}, 2000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"un mail de confirmation reçu par Mailpit\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const messages = pm.response.json().messages;",
+                  "  pm.expect(messages).to.have.lengthOf(1);",
+                  "  pm.expect(messages[0].From.Address).to.match(/^noreply@/);",
+                  "  pm.collectionVariables.set(\"verificationMailId\", messages[0].ID);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verification link in the mail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{mailpitUrl}}/api/v1/message/{{verificationMailId}}",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"lien /verifier-email avec un token\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const match = pm.response.json().Text.match(/\\/verifier-email\\?token=([A-Za-z0-9_-]+)/);",
+                  "  pm.expect(match).to.not.equal(null);",
+                  "  pm.collectionVariables.set(\"verificationToken\", match[1]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify email",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/auth/email/verify",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{verificationToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204, sans jeton d'accès\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me shows the address confirmed",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v1/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"emailVerified vrai\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().emailVerified).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify email with a used link (400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/auth/email/verify",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{verificationToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400, un lien ne sert qu'une fois\", function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Change password with a wrong current password (400)",
           "request": {
             "method": "PUT",
@@ -1347,6 +1502,42 @@
                   "  pm.response.to.have.status(200);",
                   "  pm.expect(pm.response.json().userId).to.equal(pm.collectionVariables.get(\"userId\"));",
                   "  pm.collectionVariables.set(\"accessToken\", pm.response.json().accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Password change notice received (Mailpit)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{mailpitUrl}}/api/v1/search?query={{mailQuery}}",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Encodée : le + des adresses de test serait lu comme une espace",
+                  "pm.collectionVariables.set(\"mailQuery\", encodeURIComponent(`to:\"${pm.collectionVariables.get(\"email\")}\" subject:\"Votre mot de passe a été modifié\"`));",
+                  "setTimeout(function () {}, 2000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"un mail prévient du changement\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().messages).to.have.lengthOf(1);",
                   "});"
                 ]
               }

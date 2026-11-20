@@ -20,8 +20,13 @@ swipread:
   cors:
     # Serveur de dev du frontend (Vite)
     allowed-origins: http://localhost:5173
+  web:
+    # Serveur de dev du frontend (Vite)
+    base-url: http://localhost:5173
   mail:
     from: noreply@swipread.local
+    # Les scénarios Bruno et Postman lisent les mails dans Mailpit peu après l'action
+    relay-interval: 1s
   jwt:
     # Clé de dev uniquement, jamais utilisée hors profil dev
     secret: dev-secret-change-me-dev-secret-change-me-0123456789

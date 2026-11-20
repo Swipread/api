@@ -39,9 +39,11 @@ The `ProblemDetail` schema is declared in the OpenAPI spec for every 4xx answer:
 | POST | `/v1/auth/refresh` | cookie | New access token (refresh token rotation) |
 | POST | `/v1/auth/logout` | cookie | Revoke the refresh token |
 | PUT | `/v1/auth/password` | bearer + cookie | Change the password; signs out the other devices |
+| POST | `/v1/auth/email/verify` | — | Confirm the email address with the link sent by mail |
 | GET | `/v1/me` | bearer | Profile and chosen topics |
 | PATCH | `/v1/me` | bearer | Update the profile (`displayName`) |
 | DELETE | `/v1/me` | bearer | Delete the account and personal data |
+| POST | `/v1/me/verification-email` | bearer | Send a new link to confirm the email address |
 | GET | `/v1/topics` | bearer | Topics offered at onboarding |
 | PUT | `/v1/me/topics` | bearer | Replace the chosen topics |
 | GET | `/v1/feed` | bearer | Next page of the feed (10 articles) |
@@ -85,6 +87,8 @@ Set-Cookie: swipread_refresh=…; Path=/v1/auth; Max-Age=2592000; HttpOnly; Same
 
 `Secure` is absent in `dev` and `test` (plain HTTP). The cookie is never readable from JavaScript; the browser sends it to `/v1/auth` routes only, provided the client calls them with `credentials: "include"`.
 
+Sign-up also sends a mail with a link to confirm the address (see [POST /v1/auth/email/verify](#post-v1authemailverify)). The account can be used at once; `GET /v1/me` says whether the address is confirmed.
+
 Errors: 400 validation, 409 email already registered.
 
 ### POST /v1/auth/login
@@ -112,6 +116,18 @@ Error **401** `"Invalid refresh token"` (missing, unknown, expired, revoked or r
 
 With the cookie, without `Authorization`. Revokes the device's session (the refresh token's family) and clears the cookie. Response **204**, even without a cookie. The current access token stays valid until it expires: the client must forget it.
 
+### POST /v1/auth/email/verify
+
+Public: no `Authorization` header, so the link works on another device or after logging out.
+
+```json
+{ "token": "Hq2…" }
+```
+
+`token` is the `token` parameter of the link sent by mail: `<web>/verifier-email?token=…`, where `<web>` is `swipread.web.base-url`. Response **204**: the address is confirmed (`emailVerified` becomes `true`).
+
+A link works **once**, for **24 hours**, and only while it is the latest: sending a new one (sign-up, [`POST /v1/me/verification-email`](#post-v1meverification-email)) replaces it. Otherwise **400** `"Invalid or expired link"`.
+
 ### PUT /v1/auth/password
 
 With the access token **and** the cookie (`credentials: "include"`): the cookie tells which session made the change.
@@ -128,6 +144,8 @@ With the access token **and** the cookie (`credentials: "include"`): the cookie 
 
 Errors: **400** with `errors[]` as for validation, `code` `WrongPassword` on `currentPassword` (current password incorrect) or `SamePassword` on `newPassword` (same as the current one); **401** without a valid access token. A wrong current password is a 400, not a 401, so the client does not take it for an expired session.
 
+A mail tells the reader their password was changed (« Votre mot de passe a été modifié »), with the date and a pointer to « Mot de passe oublié ».
+
 ## Profile and onboarding
 
 ### GET /v1/me
@@ -142,11 +160,20 @@ Response **200**:
   "locale": "fr-FR",
   "createdAt": "2026-10-13T08:36:21.512Z",
   "role": "READER",
+  "emailVerified": false,
   "topics": [{ "id": 1, "slug": "tech", "label": "Tech" }]
 }
 ```
 
+`emailVerified` is `true` once the reader clicked the link sent by mail. Accounts created before the verification existed start unconfirmed.
+
 `role` is `READER` or `ADMIN`. Only `ADMIN` can call `/v1/admin/**`; other accounts get **403**. The role is also carried by the access token, so a change takes effect at the next token renewal (15 minutes at most).
+
+### POST /v1/me/verification-email
+
+No body. Sends a new link to confirm the address; the previous links stop working. Response **202** (the mail is queued).
+
+Errors: **409** the address is already confirmed; **429** a link was sent less than a minute ago, or five in the last 24 hours (the one sent at sign-up counts).
 
 ### PATCH /v1/me
 
