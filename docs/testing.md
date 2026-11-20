@@ -66,7 +66,7 @@ Truncate the instants you send and then compare to milliseconds (`Instant.now().
 
 The same scenario exists in two versions, for testers on either tool. It walks the whole API with assertions: 49 requests and 54 tests. Test names are in French (the testers' language).
 
-It expects the API in the `dev` profile with the mock recommender: feed tests expect `reason: "explore"`. Each run creates a new user (`smoke+<timestamp>@example.org`), so it can be run again at will. « 08 Account » deletes that user; « 09 Admin » logs in with the seeded admin and creates a « Thème de test » topic once in the development database. No source is created (that would need a real online feed); source creation is covered by the integration tests. « 09 Admin » also gives the sample source the « Thème de test » topic.
+It expects the API in the `dev` profile with the mock recommender: feed tests expect `reason: "explore"`. Each run creates a new user (`smoke+<timestamp>@example.org`), so it can be run again at will. « 08 Account » deletes that user; « 09 Admin » logs in with the seeded admin and creates a « Thème de test » topic once in the development database. No source is created (that would need a real online feed); source creation is covered by the integration tests. « 09 Admin » also gives the sample source the « Thème de test » topic. While the sample source is inactive, « 09 Admin » registers a second reader (`smoke-reader+<timestamp>@example.org`) to check the feed, and deletes it at the end.
 
 | Folder | Checks |
 | --- | --- |
@@ -78,7 +78,7 @@ It expects the API in the `dev` profile with the mock recommender: feed tests ex
 | 06 Security and docs | 401 without token and with an invalid token, OpenAPI spec, CORS preflight from the web app's origin, admin route as a reader (403), admin login, admin profile with role `ADMIN` |
 | 07 History | The opened article is in the history |
 | 08 Account | Rename, account deletion, token refused afterwards (401) |
-| 09 Admin | Topics with counts, topic creation (201, or 409 on later runs), duplicate (409), rename, source list with topics, known feed (409), local address refused by the SSRF protection (422), deactivate, reactivate, delete a source with articles (409), set the sample source's topics, unknown topic (400) |
+| 09 Admin | Topics with counts, topic creation (201, or 409 on later runs), duplicate (409), rename, source list with topics, known feed (409), local address refused by the SSRF protection (422), deactivate, a throwaway reader's fallback page has no article of the inactive source, reactivate, delete a source with articles (409), set the sample source's topics, unknown topic (400), delete the throwaway reader |
 
 > Any change to the scenario must be made in both versions.
 
