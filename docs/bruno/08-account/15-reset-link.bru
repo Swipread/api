@@ -1,0 +1,20 @@
+meta {
+  name: Reset link in the mail
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{mailpitUrl}}/api/v1/message/{{resetMailId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("lien /reinitialiser-mot-de-passe avec un token", function () {
+    expect(res.getStatus()).to.equal(200);
+    const match = res.getBody().Text.match(/\/reinitialiser-mot-de-passe\?token=([A-Za-z0-9_-]+)/);
+    expect(match).to.not.equal(null);
+    bru.setVar("resetToken", match[1]);
+  });
+}

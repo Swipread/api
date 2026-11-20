@@ -50,6 +50,30 @@ class AccountMails {
                 .to(user.getEmail());
     }
 
+    MailMessage resetPassword(User user, String token) {
+        return new MailTemplate("Choisissez un nouveau mot de passe",
+                List.of("Bonjour " + user.getDisplayName() + ",",
+                        "Vous avez demandé à changer le mot de passe de votre compte Swipread. Cliquez sur le bouton "
+                                + "ci-dessous pour en choisir un nouveau. Le lien est valable une heure et ne sert "
+                                + "qu'une fois."),
+                new MailTemplate.Action("Choisir un nouveau mot de passe", link("/reinitialiser-mot-de-passe", token)),
+                "Vous n'avez rien demandé ? Ignorez ce message : votre mot de passe actuel reste valable.")
+                .to(user.getEmail());
+    }
+
+    MailMessage passwordReset(User user, Instant when) {
+        return new MailTemplate("Votre mot de passe a été réinitialisé",
+                List.of("Bonjour " + user.getDisplayName() + ",",
+                        "Le mot de passe de votre compte Swipread a été réinitialisé le "
+                                + WHEN.format(when.atZone(PARIS)) + " (heure de Paris), avec le lien envoyé à cette "
+                                + "adresse. Tous vos appareils ont été déconnectés.",
+                        "Si vous n'êtes pas à l'origine de ce changement, choisissez sans attendre un nouveau mot de "
+                                + "passe avec « Mot de passe oublié » sur la page de connexion."),
+                null,
+                "Ce message vous est envoyé à chaque changement de mot de passe, pour votre sécurité.")
+                .to(user.getEmail());
+    }
+
     private String link(String path, String token) {
         return UriComponentsBuilder.fromUri(web.baseUrl()).path(path).queryParam("token", token).build().toUriString();
     }

@@ -166,7 +166,7 @@ erDiagram
 | `app.events` | API | Raw event history (`POST /v1/events`), partitioned by month. The database enforces what the API already checks: an article and a known `type` for every event (V9) |
 | `app.user_articles` | API | Per reader and article: dwell time, max scroll, like, save, hide, latest opening |
 | `app.event_outbox` | API | Stream messages waiting to be published, deleted once published; internal |
-| `app.user_tokens` | API | Links sent by mail (address verification, later the forgotten password), stored as SHA-256; purged a day after expiry (V12); internal |
+| `app.user_tokens` | API | Links sent by mail (address verification, forgotten password), stored as SHA-256; purged a day after expiry (V12); internal |
 | `app.mail_outbox` | API | Mails waiting to be sent, deleted once sent; given up after 8 attempts and deleted a week later (V11); internal |
 | `app.refresh_tokens` | API | Hashed refresh tokens with their family, expiry, revocation and replacement; internal |
 

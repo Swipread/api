@@ -1545,6 +1545,238 @@
           ]
         },
         {
+          "name": "Forgot password for an unknown address (202)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/auth/password/forgot",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nobody-{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202, comme pour une adresse inscrite\", function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Forgot password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/auth/password/forgot",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202\", function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reset mail received (Mailpit)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{mailpitUrl}}/api/v1/search?query={{mailQuery}}",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Encodée : le + des adresses de test serait lu comme une espace",
+                  "pm.collectionVariables.set(\"mailQuery\", encodeURIComponent(`to:\"${pm.collectionVariables.get(\"email\")}\" subject:\"Choisissez un nouveau mot de passe\"`));",
+                  "setTimeout(function () {}, 2000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"un mail avec le lien reçu\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const messages = pm.response.json().messages;",
+                  "  pm.expect(messages).to.have.lengthOf(1);",
+                  "  pm.collectionVariables.set(\"resetMailId\", messages[0].ID);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reset link in the mail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{mailpitUrl}}/api/v1/message/{{resetMailId}}",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"lien /reinitialiser-mot-de-passe avec un token\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const match = pm.response.json().Text.match(/\\/reinitialiser-mot-de-passe\\?token=([A-Za-z0-9_-]+)/);",
+                  "  pm.expect(match).to.not.equal(null);",
+                  "  pm.collectionVariables.set(\"resetToken\", match[1]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reset password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/auth/password/reset",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"{{password}}-reset\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204, sans jeton d'accès\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reset password with a used link (400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/auth/password/reset",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"{{password}}-again\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400\", function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login with the reset password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/v1/auth/login",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}-reset\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 pour le même utilisateur\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().userId).to.equal(pm.collectionVariables.get(\"userId\"));",
+                  "  pm.collectionVariables.set(\"accessToken\", pm.response.json().accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Delete account",
           "request": {
             "method": "DELETE",

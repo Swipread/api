@@ -40,6 +40,8 @@ The `ProblemDetail` schema is declared in the OpenAPI spec for every 4xx answer:
 | POST | `/v1/auth/logout` | cookie | Revoke the refresh token |
 | PUT | `/v1/auth/password` | bearer + cookie | Change the password; signs out the other devices |
 | POST | `/v1/auth/email/verify` | — | Confirm the email address with the link sent by mail |
+| POST | `/v1/auth/password/forgot` | — | Mail a link to choose a new password |
+| POST | `/v1/auth/password/reset` | — | Choose a new password with that link; signs out every device |
 | GET | `/v1/me` | bearer | Profile and chosen topics |
 | PATCH | `/v1/me` | bearer | Update the profile (`displayName`) |
 | DELETE | `/v1/me` | bearer | Delete the account and personal data |
@@ -145,6 +147,33 @@ With the access token **and** the cookie (`credentials: "include"`): the cookie 
 Errors: **400** with `errors[]` as for validation, `code` `WrongPassword` on `currentPassword` (current password incorrect) or `SamePassword` on `newPassword` (same as the current one); **401** without a valid access token. A wrong current password is a 400, not a 401, so the client does not take it for an expired session.
 
 A mail tells the reader their password was changed (« Votre mot de passe a été modifié »), with the date and a pointer to « Mot de passe oublié ».
+
+### POST /v1/auth/password/forgot
+
+Public.
+
+```json
+{ "email": "alice@example.org" }
+```
+
+`email` must look like an address (as at sign-up); it is matched trimmed and lowercased. Response **202**, with no body, **whether or not the address has an account**: the answer never reveals who is registered. If it has one, a mail « Choisissez un nouveau mot de passe » is sent with a link `<web>/reinitialiser-mot-de-passe?token=…`, valid **1 hour**; it replaces the older links. At most one link per minute and five per 24 hours for an account: beyond that the request is still answered 202 and nothing is sent. Errors: **400** for an invalid body only.
+
+### POST /v1/auth/password/reset
+
+Public.
+
+```json
+{ "token": "Hq2…", "newPassword": "a-new-password-456" }
+```
+
+`token` is the `token` parameter of the link; `newPassword` follows the sign-up rules (8 to 72 characters; it may be the old one). Response **204**:
+
+- the password is replaced;
+- **every** session of the account is signed out (refresh tokens revoked; access tokens stay valid until they expire, 15 minutes at most);
+- the address is confirmed (`emailVerified` becomes `true`): the link proves the reader gets its mail;
+- a notice « Votre mot de passe a été réinitialisé » is mailed.
+
+It does not sign in: the client sends the reader to log in with the new password. A link works **once**, for **1 hour**, and only while it is the latest; otherwise **400** `"Invalid or expired link"`. A link from the confirmation mail does not work here.
 
 ## Profile and onboarding
 

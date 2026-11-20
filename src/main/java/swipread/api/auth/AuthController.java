@@ -20,8 +20,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import swipread.api.auth.RefreshTokenService.Rotation;
 import swipread.api.auth.dto.ChangePasswordRequest;
+import swipread.api.auth.dto.ForgotPasswordRequest;
 import swipread.api.auth.dto.LoginRequest;
 import swipread.api.auth.dto.RegisterRequest;
+import swipread.api.auth.dto.ResetPasswordRequest;
 import swipread.api.auth.dto.TokenResponse;
 import swipread.api.auth.dto.VerifyEmailRequest;
 import swipread.api.common.ApiException;
@@ -40,13 +42,15 @@ class AuthController {
     private final RefreshTokenService refreshTokens;
     private final RefreshCookies cookies;
     private final EmailVerificationService emailVerification;
+    private final PasswordResetService passwordReset;
 
     AuthController(AuthService authService, RefreshTokenService refreshTokens, RefreshCookies cookies,
-                   EmailVerificationService emailVerification) {
+                   EmailVerificationService emailVerification, PasswordResetService passwordReset) {
         this.authService = authService;
         this.refreshTokens = refreshTokens;
         this.cookies = cookies;
         this.emailVerification = emailVerification;
+        this.passwordReset = passwordReset;
     }
 
     @PostMapping("/register")
@@ -139,6 +143,35 @@ class AuthController {
     void changePassword(@CurrentUserId String userId, @Valid @RequestBody ChangePasswordRequest request,
                         @Parameter(hidden = true) @CookieValue(name = RefreshCookies.NAME, required = false) String token) {
         authService.changePassword(userId, request, token == null || token.isBlank() ? null : token);
+    }
+
+    @PostMapping("/password/forgot")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(summary = "Mail a link to choose a new password",
+            description = """
+                    Public. If the address has an account, a link `<web>/reinitialiser-mot-de-passe?token=…` is mailed, \
+                    valid 1 hour; it replaces the older ones. At most one link per minute and five per 24 hours for \
+                    an account. The answer is the same whether the address has an account or not, and also when the \
+                    limit is reached, so it does not reveal who is registered.""")
+    @ApiResponse(responseCode = "202", description = "Request taken (a mail is sent only to a registered address)")
+    @ApiResponse(responseCode = "400", description = "Invalid request (missing or malformed email)")
+    void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordReset.requestLink(request.email());
+    }
+
+    @PostMapping("/password/reset")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Choose a new password with the link sent by mail",
+            description = """
+                    Public. `token` is the `token` parameter of the link; it works once and for 1 hour. Signs out \
+                    every session of the account (refresh tokens revoked; access tokens stay valid until they expire, \
+                    15 minutes), confirms the email address, and mails a notice. Does not sign in: log in with the \
+                    new password.""")
+    @ApiResponse(responseCode = "204", description = "Password replaced")
+    @ApiResponse(responseCode = "400", description = """
+            Invalid request (password rules as at sign-up), or unknown, used, replaced or expired link""")
+    void resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordReset.reset(request.token(), request.newPassword());
     }
 
     private TokenResponse withRefreshCookie(TokenResponse token, HttpServletResponse response) {
