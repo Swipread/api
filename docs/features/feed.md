@@ -108,7 +108,7 @@ No refill starts at that moment: the next `GET /v1/feed` finds an empty stock, s
 
 ## Hydration
 
-`ArticleQueryService.hydrate(ids)` loads articles with their source name and topics (most confident first) and keeps the requested order. `UserArticleStates` adds `liked` and `saved` in one query. The `embedding` column is never mapped by the API.
+`ArticleQueryService.hydrate(ids)` loads articles with their source name and topics (most confident first) and keeps the requested order. `UserArticleStates` adds `liked` and `saved` in one query.
 
 ## Tests
 

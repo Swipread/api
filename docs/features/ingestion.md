@@ -36,7 +36,6 @@ flowchart TD
 | `language` | The source's language |
 | `image_url` | Image enclosure, `media:content` or `media:thumbnail` (Media RSS) of the entry, else the page's `og:image` or `twitter:image` |
 | `word_count` | See below; always at least 1 |
-| `embedding` | Not filled: the recommender keeps its own embeddings |
 
 **Topics.** Each article gets its source's topics (`app.source_topics`) with confidence 1.0, 0.9 and 0.8 in the order the admin chose: the first one is its main topic for the recommender. Changing a source's topics does not change the articles already saved.
 

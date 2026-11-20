@@ -11,7 +11,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * Lecture seule côté backend (écrit par l'ingestion). La colonne embedding n'est volontairement pas mappée.
+ * Lecture seule côté backend (écrit par l'ingestion).
  */
 @Entity
 @Table(name = "articles", schema = "app")

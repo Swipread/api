@@ -1,6 +1,6 @@
 # Database
 
-One PostgreSQL 17 database with the pgvector extension, split into two schemas:
+One PostgreSQL 17 database with the pgvector extension (used by the recommender's own tables), split into two schemas:
 
 - `app`: business data, written by the API, the ingestion and admins;
 - `reco`: the recommendation service's internal data. The API creates the schema and the `swipread_reco` role, but no table in it: the recommender creates and evolves its own (see its documentation).
@@ -17,6 +17,7 @@ Source of truth: the Flyway migrations in `src/main/resources/db/migration`. Kee
 | V6 | `app.event_outbox` |
 | V7 | `app.refresh_tokens` |
 | V8 | `app.source_topics`; `app.sources.etag`, `last_modified`, `last_fetched_at`, `last_error` (ingestion); drops `reco.user_profiles` and `reco.model_runs`, created by V1 and never used |
+| V9 | Drops `app.articles.embedding` and `articles_embedding_idx`, created by V1 and never filled; `app.events.article_id` becomes `NOT NULL` and `events_type_check` restricts `type` to the ten event types |
 
 Repeatable migrations load data: `db/seed` (8 topics and the `admin@swipread.dev` account; `dev` and `test` profiles) and `db/dev-data` (300 sample articles; `dev` only).
 
@@ -75,7 +76,6 @@ erDiagram
         int word_count
         timestamptz published_at
         timestamptz ingested_at
-        vector embedding "vector(384), nullable, not mapped by the API"
     }
     app_article_topics {
         text article_id PK, FK
@@ -87,8 +87,8 @@ erDiagram
         timestamptz occurred_at PK "partition key"
         text user_id
         text session_id
-        text type
-        text article_id "nullable"
+        text type "CHECK: the ten event types, V9"
+        text article_id "NOT NULL since V9"
         text request_id "nullable"
         int position "nullable"
         jsonb payload
@@ -144,9 +144,9 @@ erDiagram
 | `app.user_topics` | API | Topics chosen by each reader |
 | `app.sources` | admins | Ingested RSS/Atom feeds, with their reuse licence and status; state of the last read by the ingestion (V8) |
 | `app.source_topics` | admins | One to three topics per source, in the admin's order (`position`); the source's articles inherit them (V8) |
-| `app.articles` | ingestion | Metadata, summary, word count; the `embedding` column is not filled (the recommender keeps its own embeddings) |
+| `app.articles` | ingestion | Metadata, summary, word count. No embedding: the recommender computes and keeps its own (V9 dropped the unused column) |
 | `app.article_topics` | ingestion | Topics of each article, inherited from its source: confidence 1.0, 0.9, 0.8 in the source's order |
-| `app.events` | API | Raw event history (`POST /v1/events`), partitioned by month |
+| `app.events` | API | Raw event history (`POST /v1/events`), partitioned by month. The database enforces what the API already checks: an article and a known `type` for every event (V9) |
 | `app.user_articles` | API | Per reader and article: dwell time, max scroll, like, save, hide, latest opening |
 | `app.event_outbox` | API | Stream messages waiting to be published, deleted once published; internal |
 | `app.refresh_tokens` | API | Hashed refresh tokens with their family, expiry, revocation and replacement; internal |
@@ -174,7 +174,6 @@ erDiagram
 | Index | Used by |
 | --- | --- |
 | `articles_published_idx` (`published_at DESC`) | Fallback feed: most recent articles |
-| `articles_embedding_idx` (HNSW, `vector_cosine_ops`) | Nearest-neighbour search by the recommender (`<=>`) |
 | `events_user_idx` (`user_id, occurred_at DESC`) | A user's events, account deletion |
 | `user_articles_saved_idx` (`user_id, saved_at DESC`, partial `saved_at IS NOT NULL`) | `GET /v1/me/saved` |
 | `user_articles_opened_idx` (`user_id, opened_at DESC`, partial `opened_at IS NOT NULL`) | `GET /v1/me/history` |
@@ -183,7 +182,6 @@ erDiagram
 
 ## Access from the API
 
-- The API never maps the `embedding` column: the ingestion writes it, the recommender reads it.
 - JPA (`ddl-auto: validate`) for accounts, topics, sources and articles; `JdbcTemplate` for events, per-article state, the outbox and refresh tokens.
 
 ## Recommender role

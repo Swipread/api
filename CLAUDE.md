@@ -25,7 +25,6 @@ Backend d'un réseau social type TikTok où l'on scrolle des articles recommand�
 - Schéma géré uniquement par Flyway (`src/main/resources/db/migration`), Hibernate en `ddl-auto: validate`. Une migration commitée n'est jamais modifiée : on en ajoute une nouvelle.
 - Données de seed : `db/seed` (thèmes et compte `admin@swipread.dev`, profils dev et test), `db/dev-data` (articles d'exemple, profil dev uniquement), en migrations repeatable.
 - Connexions JDBC en UTC (`connection-init-sql`) : les bornes de partition du DDL en dépendent.
-- La colonne `app.articles.embedding` n'est jamais mappée côté backend.
 - Erreurs au format ProblemDetail (RFC 9457) via le `@RestControllerAdvice` de `common`.
 - Le `userId` vient toujours du JWT (`sub`), jamais du corps de la requête.
 - JWT HS256 signés par l'API (secret en config), validés par le Resource Server. Mots de passe en BCrypt.
