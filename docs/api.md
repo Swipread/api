@@ -38,6 +38,7 @@ The `ProblemDetail` schema is declared in the OpenAPI spec for every 4xx answer:
 | POST | `/v1/auth/login` | — | Log in; same response |
 | POST | `/v1/auth/refresh` | cookie | New access token (refresh token rotation) |
 | POST | `/v1/auth/logout` | cookie | Revoke the refresh token |
+| PUT | `/v1/auth/password` | bearer + cookie | Change the password; signs out the other devices |
 | GET | `/v1/me` | bearer | Profile and chosen topics |
 | PATCH | `/v1/me` | bearer | Update the profile (`displayName`) |
 | DELETE | `/v1/me` | bearer | Delete the account and personal data |
@@ -110,6 +111,22 @@ Error **401** `"Invalid refresh token"` (missing, unknown, expired, revoked or r
 ### POST /v1/auth/logout
 
 With the cookie, without `Authorization`. Revokes the device's session (the refresh token's family) and clears the cookie. Response **204**, even without a cookie. The current access token stays valid until it expires: the client must forget it.
+
+### PUT /v1/auth/password
+
+With the access token **and** the cookie (`credentials: "include"`): the cookie tells which session made the change.
+
+```json
+{ "currentPassword": "password123", "newPassword": "a-new-password-456" }
+```
+
+`newPassword` follows the sign-up rules (8 to 72 characters). Response **204**:
+
+- the password is replaced;
+- every other session of the reader is signed out: their refresh tokens are revoked, so they get a 401 at their next renewal. Their access tokens stay valid until they expire (15 minutes at most);
+- the session of the cookie sent stays signed in. Without a cookie, or with a cookie of another account, every session is signed out.
+
+Errors: **400** with `errors[]` as for validation, `code` `WrongPassword` on `currentPassword` (current password incorrect) or `SamePassword` on `newPassword` (same as the current one); **401** without a valid access token. A wrong current password is a 400, not a 401, so the client does not take it for an expired session.
 
 ## Profile and onboarding
 

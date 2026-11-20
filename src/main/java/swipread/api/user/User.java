@@ -78,4 +78,8 @@ public class User {
     public void rename(String displayName) {
         this.displayName = displayName;
     }
+
+    public void changePasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
 }

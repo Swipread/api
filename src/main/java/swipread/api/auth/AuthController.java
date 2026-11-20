@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
@@ -12,15 +13,19 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import swipread.api.auth.RefreshTokenService.Rotation;
+import swipread.api.auth.dto.ChangePasswordRequest;
 import swipread.api.auth.dto.LoginRequest;
 import swipread.api.auth.dto.RegisterRequest;
 import swipread.api.auth.dto.TokenResponse;
 import swipread.api.common.ApiException;
+import swipread.api.common.OpenApiConfig;
+import swipread.api.security.CurrentUserId;
 
 @RestController
 @RequestMapping("/v1/auth")
@@ -97,6 +102,25 @@ class AuthController {
             refreshTokens.revoke(token);
         }
         response.addHeader(HttpHeaders.SET_COOKIE, cookies.clear());
+    }
+
+    @PutMapping("/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @SecurityRequirement(name = OpenApiConfig.BEARER)
+    @Operation(summary = "Change the password",
+            description = """
+                    Needs the access token and the current password. Signs out every other session: their refresh \
+                    tokens are revoked, and their access tokens stay valid until they expire (15 minutes). The session \
+                    of the refresh token cookie sent with the request stays signed in: send it with credentials.""")
+    @Parameter(in = ParameterIn.COOKIE, name = RefreshCookies.NAME, description = REFRESH_COOKIE_DOC)
+    @ApiResponse(responseCode = "204", description = "Password changed")
+    @ApiResponse(responseCode = "400", description = """
+            Invalid request, or a rule not met: errors[].code `WrongPassword` on currentPassword, `SamePassword` on \
+            newPassword""")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid access token")
+    void changePassword(@CurrentUserId String userId, @Valid @RequestBody ChangePasswordRequest request,
+                        @Parameter(hidden = true) @CookieValue(name = RefreshCookies.NAME, required = false) String token) {
+        authService.changePassword(userId, request, token == null || token.isBlank() ? null : token);
     }
 
     private TokenResponse withRefreshCookie(TokenResponse token, HttpServletResponse response) {

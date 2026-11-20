@@ -110,6 +110,29 @@ public class RefreshTokenService {
     }
 
     /**
+     * Après un changement de mot de passe : révoque toutes les sessions de l'utilisateur sauf celle du token présenté,
+     * s'il lui appartient (l'appareil qui a fait le changement reste connecté).
+     *
+     * @return le nombre de tokens révoqués
+     */
+    @Transactional
+    public int revokeOtherSessions(String userId, String presented) {
+        Timestamp now = Timestamp.from(clock.instant());
+        UUID kept = presented == null ? null : jdbc.query(
+                        "SELECT family_id FROM app.refresh_tokens WHERE token_hash = ? AND user_id = ?",
+                        (rs, n) -> rs.getObject(1, UUID.class), hash(presented), userId)
+                .stream().findFirst().orElse(null);
+        if (kept == null) {
+            return jdbc.update("UPDATE app.refresh_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL",
+                    now, userId);
+        }
+        return jdbc.update("""
+                UPDATE app.refresh_tokens SET revoked_at = ?
+                WHERE user_id = ? AND revoked_at IS NULL AND family_id <> ?
+                """, now, userId, kept);
+    }
+
+    /**
      * Purge quotidienne des tokens expirés depuis plus d'un jour.
      */
     @Scheduled(cron = "0 30 3 * * *", zone = "UTC")

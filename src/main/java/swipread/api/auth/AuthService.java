@@ -4,6 +4,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import swipread.api.auth.dto.ChangePasswordRequest;
 import swipread.api.auth.dto.LoginRequest;
 import swipread.api.auth.dto.RegisterRequest;
 import swipread.api.auth.dto.TokenResponse;
@@ -27,16 +28,18 @@ public class AuthService {
     private final JwtService jwtService;
     private final IdGenerator idGenerator;
     private final Clock clock;
+    private final RefreshTokenService refreshTokens;
     // Hash factice pour que le temps de réponse ne révèle pas si l'email existe
     private final String dummyHash;
 
     public AuthService(UserRepository users, PasswordEncoder passwordEncoder, JwtService jwtService,
-                       IdGenerator idGenerator, Clock clock) {
+                       IdGenerator idGenerator, Clock clock, RefreshTokenService refreshTokens) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.idGenerator = idGenerator;
         this.clock = clock;
+        this.refreshTokens = refreshTokens;
         this.dummyHash = passwordEncoder.encode("dummy-password");
     }
 
@@ -66,6 +69,24 @@ public class AuthService {
             throw ApiException.unauthorized("Invalid email or password");
         }
         return tokenFor(user.get());
+    }
+
+    /**
+     * Change le mot de passe après vérification de l'actuel, et ferme dans la même transaction toutes les autres
+     * sessions de l'utilisateur (celle du refresh token présenté, s'il y en a un, reste ouverte).
+     */
+    @Transactional
+    public void changePassword(String userId, ChangePasswordRequest request, String presentedRefreshToken) {
+        User user = users.findById(userId).orElseThrow(() -> ApiException.unauthorized("Unknown user"));
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw ApiException.fieldRejected("currentPassword", "WrongPassword", "Current password is incorrect");
+        }
+        if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+            throw ApiException.fieldRejected("newPassword", "SamePassword",
+                    "New password must differ from the current one");
+        }
+        user.changePasswordHash(passwordEncoder.encode(request.newPassword()));
+        refreshTokens.revokeOtherSessions(userId, presentedRefreshToken);
     }
 
     /**

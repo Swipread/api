@@ -9,11 +9,28 @@ public class ApiException extends RuntimeException {
 
     private final HttpStatus status;
     private final String title;
+    private final FieldRejection field;
 
     public ApiException(HttpStatus status, String title, String detail) {
+        this(status, title, detail, null);
+    }
+
+    private ApiException(HttpStatus status, String title, String detail, FieldRejection field) {
         super(detail);
         this.status = status;
         this.title = title;
+        this.field = field;
+    }
+
+    /**
+     * Champ refusé par une règle métier : même format que les erreurs de validation (errors[] avec field et code),
+     * pour que le client l'affiche sous le champ.
+     */
+    public record FieldRejection(String field, String code) {
+    }
+
+    public static ApiException fieldRejected(String field, String code, String detail) {
+        return new ApiException(HttpStatus.BAD_REQUEST, "Bad request", detail, new FieldRejection(field, code));
     }
 
     public static ApiException badRequest(String detail) {
@@ -42,5 +59,9 @@ public class ApiException extends RuntimeException {
 
     public String getTitle() {
         return title;
+    }
+
+    public FieldRejection getField() {
+        return field;
     }
 }

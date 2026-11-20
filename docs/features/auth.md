@@ -10,6 +10,7 @@ Accounts, access tokens and refresh tokens. Code: `swipread.api.auth`, `swipread
 | `POST /v1/auth/login` | Checks the password, returns an access token, sets the refresh cookie (a new session) |
 | `POST /v1/auth/refresh` | Rotates the refresh token and returns a new access token |
 | `POST /v1/auth/logout` | Revokes the session of the device and clears the cookie |
+| `PUT /v1/auth/password` | Checks the current password, replaces it, revokes the reader's other sessions (needs the access token; the cookie keeps its own session) |
 
 Request and response details: [API reference](../api.md#auth).
 
@@ -71,8 +72,9 @@ The refresh endpoints authenticate with a cookie, so they could be targeted by c
 
 - **Sign-up** normalises the email (trimmed, lowercase), hashes the password with BCrypt, generates a `u_` ULID and defaults the locale to `fr-FR`. A duplicate email answers 409, including the race where two sign-ups hit the unique constraint.
 - **Login** answers 401 `"Invalid email or password"` for any mismatch, and runs a BCrypt check against a dummy hash when the email is unknown, so timing does not reveal accounts.
+- **Password change** (`AuthService.changePassword`): the current password must match and the new one must differ (400 with `errors[].code` `WrongPassword` or `SamePassword`, built by `ApiException.fieldRejected`). In the same transaction, `RefreshTokenService.revokeOtherSessions` revokes every refresh token of the reader except the family of the cookie sent, if it is the reader's. It sits under `/v1/auth` because the cookie is scoped to that path, but unlike the other auth endpoints it needs the access token.
 - **Roles**: `READER` (default) or `ADMIN` (column `app.users.role`, migration V3). There is no endpoint to change a role; see [Configuration](../configuration.md#production-checklist).
 
 ## Tests
 
-`AuthIntegrationTest` (sign-up, login, 401/409/400 as `ProblemDetail`, English validation messages with codes), `RefreshTokenIntegrationTest` (cookie attributes, 15-minute token, rotation, grace period, reuse revoking the family, missing/unknown/expired tokens, logout, account deletion, CORS with credentials, hashed storage), `RoleIntegrationTest`, `CorsIntegrationTest`.
+`AuthIntegrationTest` (sign-up, login, 401/409/400 as `ProblemDetail`, English validation messages with codes), `RefreshTokenIntegrationTest` (cookie attributes, 15-minute token, rotation, grace period, reuse revoking the family, missing/unknown/expired tokens, logout, account deletion, CORS with credentials, hashed storage), `PasswordChangeIntegrationTest` (other sessions signed out and this one kept, no cookie or another reader's cookie, wrong current password and same password as field errors, sign-up rules, access token required), `RoleIntegrationTest`, `CorsIntegrationTest`.
