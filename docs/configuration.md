@@ -38,6 +38,7 @@ The feed sizes and the recommender timeout come from the contract with the recom
 | `spring.jpa.open-in-view` | `false` | No SQL during JSON serialisation |
 | `spring.jackson.default-property-inclusion` | `non_null` | `null` fields are left out of responses and stream messages |
 | `spring.threads.virtual.enabled` | `true` | Virtual threads for HTTP requests |
+| `spring.servlet.multipart.enabled` | `false` | No multipart parsing: the API has no upload, and the parsing would hand part headers to `java.util.Base64` before authentication (CVE-2026-114938) |
 | `spring.docker.compose.enabled` | `false` (`true` in `dev`) | Docker Compose in development only |
 | `management.endpoints.web.exposure.include` | `health,info` | Only these Actuator endpoints are exposed |
 

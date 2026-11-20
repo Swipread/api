@@ -86,6 +86,7 @@ flowchart LR
 - **Stateless.** No server session. CSRF protection is disabled: authenticated endpoints only accept the `Authorization` header, which a browser never adds on its own, and the only cookie is `SameSite=Strict` and scoped to `/v1/auth`.
 - **CORS.** The CORS filter runs before authentication, so preflight `OPTIONS` requests need no token. Allowed origins come from `swipread.cors.allowed-origins`, with credentials allowed (for the refresh cookie).
 - **Public routes**: `POST /v1/auth/register`, `/login`, `/refresh`, `/logout`, `/v3/api-docs/**`, `/swagger-ui/**`, `/actuator/health/**`, `/actuator/info`. Everything else requires a valid access token. A request to a public route that still carries an invalid `Authorization` header is rejected by the bearer filter: clients must not send one to `/v1/auth/*`.
+- **No multipart parsing.** The API accepts no upload, so multipart parsing is turned off: no part header reaches `java.util.Base64` before authentication (CVE-2026-114938, a JVM Base64 decoder flaw on AVX-512 VBMI processors).
 - **Outbound requests.** Only the feed check of a new source downloads a URL chosen by a user (an admin). It is protected against SSRF, see [Sources](features/sources.md).
 
 ## Error handling

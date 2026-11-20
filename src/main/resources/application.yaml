@@ -25,6 +25,11 @@ spring:
   threads:
     virtual:
       enabled: true
+  servlet:
+    multipart:
+      # Aucun upload : sans analyse multipart, aucune donnée de l'utilisateur n'atteint le décodeur Base64 de
+      # ContentDisposition avant l'authentification (CVE-2026-114938)
+      enabled: false
 
 springdoc:
   default-produces-media-type: application/json
