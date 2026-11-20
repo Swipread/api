@@ -1,6 +1,6 @@
 # Recommendation
 
-The API asks the recommendation service ([Swipread/reco](https://github.com/Swipread/reco)) for articles and streams events to it. The full interface is the backend / recommender contract (v1.5); this page summarises what it means for this codebase. Code: `swipread.api.reco`.
+The API asks the recommendation service ([Swipread/reco](https://github.com/Swipread/reco)) for articles and streams events to it. The full interface is the backend / recommender contract (v1.6); this page summarises what it means for this codebase. Code: `swipread.api.reco`.
 
 ## Asking for recommendations
 

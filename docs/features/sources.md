@@ -60,7 +60,7 @@ The API downloads a URL typed by a user. Without protection, an admin account (o
 
 ## Deactivating and deleting
 
-- An inactive source is skipped by the ingestion; its published articles stay in feeds, saved lists and history.
+- An inactive source is skipped by the ingestion, and its articles leave the feeds: the recommender and the fallback feed only serve articles of active sources. They stay in saved lists and history. Reactivating the source brings them back.
 - Deleting a source that has articles answers 409: deleting its articles would erase readers' saved lists and history (cascades). Deactivate it instead.
 
 ## Tests

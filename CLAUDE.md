@@ -11,6 +11,7 @@ Backend d'un réseau social type TikTok où l'on scrolle des articles recommand�
   - Partition `app.events_default` + job planifié qui crée la partition du mois suivant.
   - Stream `events` : un seul champ `data` contenant le JSON du contrat, rétention 7 j via `XADD … MINID ~`.
   - Stock vide sur `GET /v1/feed` : repli synchrone pour la 1re page, remplissage reco en arrière-plan.
+  - Feed de repli (v1.6, 20/11/2026) : seulement les sources actives, sans limite d'âge, et jamais un article de `app.user_articles` (en plus de `seen:{userId}`).
   - `app.refresh_tokens` (v1.4, V7) : refresh tokens hachés, cookie HttpOnly `swipread_refresh`, rotation et familles.
   - `app.event_outbox` (v1.3, V6) : messages du stream écrits dans la transaction des événements, publiés par `OutboxRelay` toutes les 200 ms.
   - `feed:{userId}:ver` (v1.2) : version du stock incrémentée avant invalidation ou vidage, vérifiée par le script Lua d'ajout d'un lot.

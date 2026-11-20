@@ -50,10 +50,11 @@ All errors are RFC 9457 `ProblemDetail`. Validation messages are forced to Engli
 
 ## Contract deviations (validated)
 
-Validated on 13/10/2026, 10/11/2026 and 19/11/2026, and reported in the contract (v1.1 to v1.5).
+Validated on 13/10/2026, 10/11/2026, 19/11/2026 and 20/11/2026, and reported in the contract (v1.1 to v1.6).
 
 | Topic | Decision | Reason |
 | --- | --- | --- |
+| Fallback feed exclusions (v1.6) | Only articles of active sources, with no age limit, and never one in the reader's `app.user_articles` | The contract only removed `seen:{userId}` (30 days) and completed with the most recent articles of any source: seen or hidden articles came back after 30 days, and a deactivated source still fed the feed, unlike the recommender |
 | Tables of the `reco` schema (v1.5) | V8 drops `reco.user_profiles` and `reco.model_runs`, created by V1 from the contract's DDL; the API creates the schema and the role only | Never used, and owned by the API's role: the recommender could neither change them nor create its own profile table under that name |
 | Origin of stock articles | New key `feed:{userId}:meta` (Hash `articleId → requestId\|reason`, 6 h). `feed:{userId}` stays a list of plain ids | The stock mixes several recommender batches and fallback articles; `feed:{userId}:req` only keeps the latest `requestId`, which would mis-attribute events |
 | Empty stock | The first page is served directly from the fallback feed, then the recommender refill starts in the background | « The reader never waits for the recommender » |

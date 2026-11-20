@@ -76,7 +76,7 @@ sequenceDiagram
 
 - **Execution.** Refills run on virtual threads, at most 64 at once (`FeedConfig`), which bounds concurrent calls to the recommender. Errors are logged and the lock is always released.
 - **Lock.** `SET NX EX 5` with a random token; a Lua script releases it only if the token matches. The 5-second TTL covers an instance that dies mid-refill.
-- **Seen filter.** The recommender excludes the reader's history from the database, but a served article only reaches the database when its events arrive (up to a few seconds later). `seen:{userId}` covers that gap. It is never read whole (up to 30 days of history): `SMISMEMBER` checks only the candidates (`FeedStore.seenAmong`).
+- **Seen filter.** The recommender excludes the reader's history from the database, but a served article only reaches the database when its events arrive (up to a few seconds later). `seen:{userId}` covers that gap; beyond its 30 days, `app.user_articles` does. It is never read whole (up to 30 days of history): `SMISMEMBER` checks only the candidates (`FeedStore.seenAmong`).
 - **Version check.** A refill reads `feed:{userId}:ver` when it starts. Its batch is appended only if the version is unchanged, atomically in a Lua script: an invalidation or topic change that happened during the recommender call (up to 300 ms) discards the batch instead of appending articles computed without that signal. The refill then recomputes once, still holding the lock. The version is incremented **before** the stock is modified, so an append that lands in between is already refused.
 
 ## Fallback feed
@@ -84,10 +84,12 @@ sequenceDiagram
 `FallbackFeedProvider.articleIds(userId, count, excluded)`:
 
 1. Reads the `fallback:{slug}` lists of the reader's topics (written by a recommender batch job).
-2. Merges and shuffles them, removes the excluded ids (current stock) and the ones in `seen:{userId}` (`SMISMEMBER` on these candidates only).
-3. If that is not enough, completes with the most recent articles in the database (50 at most), read in batches of 100 with keyset pagination on `(published_at, id)`; only each batch is checked against `seen`.
+2. Merges and shuffles them, removes the excluded ids (current stock) and the ones in `seen:{userId}` (`SMISMEMBER` on these candidates only), then keeps, in one SQL query, only the articles of an **active** source that are not in the reader's `app.user_articles`. A list can still hold an article of a source deactivated since the recommender's last batch.
+3. If that is not enough, completes with the most recent articles of active sources, with no age limit and outside `app.user_articles` (50 at most), read in batches of 100 with keyset pagination on `(published_at, id)`; only each batch is checked against `seen`.
 
-Fallback articles carry `requestId = "fallback"` and `reason = "fallback"`. With no recommender batch ever run (no `fallback:*` lists, as in development), the fallback feed is simply the most recent articles.
+So a deactivated source no longer feeds any page, and an article already seen or hidden never comes back, even after the 30 days of `seen:{userId}`: `app.user_articles` keeps it for good, as the recommender does (contract v1.6).
+
+Fallback articles carry `requestId = "fallback"` and `reason = "fallback"`. With no recommender batch ever run (no `fallback:*` lists, as in development), the fallback feed is simply the most recent articles of active sources.
 
 ## Invalidation on strong events
 

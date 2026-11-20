@@ -145,7 +145,7 @@ In production the API runs without a profile and reads everything from environme
 
 ## Project status
 
-The user stories of the reader and admin journeys are implemented, together with the requests of the web team and a series of hardening steps (outbox, stock versioning, refresh tokens, SSRF protection). The interface with the recommender is at contract v1.5: the recommender consumes the events stream, and the API ingests the articles. The recommender ([Swipread/reco](https://github.com/Swipread/reco)) 1.0.1 runs in production next to the API; the fallback feed only serves a reader's first page after onboarding and any time the recommender is unavailable.
+The user stories of the reader and admin journeys are implemented, together with the requests of the web team and a series of hardening steps (outbox, stock versioning, refresh tokens, SSRF protection). The interface with the recommender is at contract v1.6: the recommender consumes the events stream, and the API ingests the articles. The recommender ([Swipread/reco](https://github.com/Swipread/reco)) 1.0.1 runs in production next to the API; the fallback feed only serves a reader's first page after onboarding and any time the recommender is unavailable.
 
 Open points, tracked in [Decisions](docs/decisions.md):
 

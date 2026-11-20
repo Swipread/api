@@ -33,7 +33,7 @@ The Bruno and Postman scenarios are not run in CI: they need the API started in 
 | Integration | `OnboardingIntegrationTest` | Topics, replacing choices, three-topic minimum, `/v1/me` |
 | Integration | `CorsIntegrationTest`, `RoleIntegrationTest` | Preflight without token, unknown origin refused; `READER`/`ADMIN` roles, 403 on `/v1/admin/**`, promotion effective with the next token |
 | Integration | `FeedIntegrationTest` | First page from the fallback, asynchronous refill to 50, Redis keys, no duplicates across pages, stock emptied on topic change (seen kept, nothing emptied on a 400) |
-| Integration | `FallbackFeedProviderIntegrationTest` | `seenAmong` (`SMISMEMBER`), recent articles outside `seen` across several batches, `fallback:{slug}` lists outside `seen` and excluded ids |
+| Integration | `FallbackFeedProviderIntegrationTest` | `seenAmong` (`SMISMEMBER`), recent articles outside `seen` across several batches, `fallback:{slug}` lists outside `seen` and excluded ids, articles seen or hidden 40 days ago (only in `app.user_articles`) never served again, articles of an inactive source never served (lists and recent articles) |
 | Integration | `FeedStoreIntegrationTest` | Stock version: append at the right version, batch discarded after an invalidation or topic change, account deletion erasing the version |
 | Integration | `EventIntegrationTest` | Storage, aggregation, stream publication, dedup, invalidation (`LTRIM` to 10, then refill), partitions |
 | Integration | `OutboxIntegrationTest` | Committed messages published in order then removed, nothing published for a rolled-back transaction, enqueue outside a transaction refused |

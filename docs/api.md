@@ -383,7 +383,7 @@ Errors:
 { "active": false, "topicIds": [5, 2] }
 ```
 
-A partial update: `active`, `topicIds`, or both; an absent field is left unchanged, but at least one is required (400 `"Nothing to update: give active or topicIds"`). `topicIds` follows the creation rules and replaces the source's topics in the given order; the articles already ingested keep theirs. An inactive source is skipped by the ingestion; its published articles stay in feeds. Response **200** in the `GET /v1/admin/sources` format. Errors **400** as for the creation, **404** if the source does not exist.
+A partial update: `active`, `topicIds`, or both; an absent field is left unchanged, but at least one is required (400 `"Nothing to update: give active or topicIds"`). `topicIds` follows the creation rules and replaces the source's topics in the given order; the articles already ingested keep theirs. An inactive source is skipped by the ingestion and no longer feeds the feed; its articles stay in saved lists and history. Response **200** in the `GET /v1/admin/sources` format. Errors **400** as for the creation, **404** if the source does not exist.
 
 ### DELETE /v1/admin/sources/{id}
 
