@@ -29,6 +29,7 @@ tests {
       expect(item.topics).to.be.an("array");
       expect(item.liked).to.equal(false);
       expect(item.saved).to.equal(false);
+      expect(item.wordCountFromSummary).to.be.a("boolean");
     });
     bru.setVar("firstPageIds", JSON.stringify(items.map(i => i.articleId)));
   });

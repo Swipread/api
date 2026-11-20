@@ -106,6 +106,6 @@ class FeedServiceTest {
 
     private static ArticleResponse article(String id) {
         return new ArticleResponse(id, "title", "summary", "https://example.org/" + id, null, null, "source", "fr", 500,
-                Instant.parse("2026-10-12T10:00:00Z"), List.of(new TopicResponse(1, "tech", "Tech")));
+                false, Instant.parse("2026-10-12T10:00:00Z"), List.of(new TopicResponse(1, "tech", "Tech")));
     }
 }

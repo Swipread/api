@@ -194,6 +194,7 @@ Response **200**:
       "sourceName": "Le Journal Tech",
       "language": "fr",
       "wordCount": 850,
+      "wordCountFromSummary": false,
       "publishedAt": "2026-10-12T08:00:00Z",
       "topics": [{ "id": 1, "slug": "tech", "label": "Tech" }],
       "liked": false,
@@ -211,6 +212,7 @@ Response **200**:
 - `position` is the index in the page, from 0.
 - `topics`: topics detected for the article, most confident first; empty when the ingestion found none.
 - `liked` and `saved`: the current reader's state for the article, always present.
+- `wordCountFromSummary`: true when only the feed's title and summary could be counted (the article's page could not be read, often a source that blocks robots). `wordCount` then says nothing of the article's length: do not show a reading time. Same field in the articles of `/v1/me/saved` and `/v1/me/history`.
 - `null` fields are omitted (`imageUrl`, `author` in particular).
 - A new reader's first call is served by the fallback feed; the next ones come from the recommender once the stock is filled in the background.
 
@@ -280,7 +282,7 @@ Response **200**, most recently saved first, hidden articles excluded:
 
 ```json
 {
-  "items": [{ "article": { "id": "a_387", "title": "…", "summary": "…", "url": "https://…", "sourceName": "…", "language": "fr", "wordCount": 850, "publishedAt": "2026-10-12T08:00:00Z", "topics": [{ "id": 1, "slug": "tech", "label": "Tech" }] }, "savedAt": "2026-10-12T10:41:12Z", "liked": true }],
+  "items": [{ "article": { "id": "a_387", "title": "…", "summary": "…", "url": "https://…", "sourceName": "…", "language": "fr", "wordCount": 850, "wordCountFromSummary": false, "publishedAt": "2026-10-12T08:00:00Z", "topics": [{ "id": 1, "slug": "tech", "label": "Tech" }] }, "savedAt": "2026-10-12T10:41:12Z", "liked": true }],
   "nextCursor": "MjAyNi0xMC0xMlQxMDo0MToxMlp8YV8zODc"
 }
 ```

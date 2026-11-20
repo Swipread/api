@@ -104,6 +104,6 @@ Choices made where the contract was silent or ambiguous, all validated as is on 
 
 ## Known technical debt
 
-- **Sources that block robots.** Some sites answer bots with a challenge page (Le Monde, measured on 19/11/2026). The ingestion recognises it and counts the feed's summary instead. Since V10 such articles are flagged (`word_count_from_summary`) and no complete read is inferred from their count, but the reading time the web app shows (`wordCount`) is still far too short, and only an open, not its length, tells something of the reader's interest. Way out: a licence or partner access with the publisher.
+- **Sources that block robots.** Some sites answer bots with a challenge page (Le Monde, measured on 19/11/2026). The ingestion recognises it and counts the feed's summary instead. Since V10 such articles are flagged (`word_count_from_summary`, exposed as `wordCountFromSummary`): no complete read is inferred from their count and the web app shows no reading time. Their real length stays unknown, so only an open, not its length, tells something of the reader's interest. Way out: a licence or partner access with the publisher.
 
 Add new debt here with its risk and a way out.

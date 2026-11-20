@@ -92,6 +92,29 @@ class SavedArticlesIntegrationTest extends IntegrationTest {
     }
 
     @Test
+    void savedArticlesSayWhenTheirWordCountComesFromTheSummaryOnly() throws Exception {
+        jdbc.update("UPDATE app.articles SET word_count_from_summary = true WHERE id = 'a_it0160'");
+        try {
+            RegisteredUser user = registerUser();
+            Instant base = clientNow().minusSeconds(60);
+            String events = String.join(",",
+                    event("save", "a_it0160", base.plusSeconds(1)),
+                    event("save", "a_it0161", base.plusSeconds(2)));
+            mvc.perform(post("/v1/events").header("Authorization", user.bearer())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"sessionId\": \"s_1\", \"events\": [" + events + "]}"))
+                    .andExpect(status().isAccepted());
+
+            JsonNode items = saved(user, "").get("items");
+            assertThat(ids(saved(user, ""))).containsExactly("a_it0161", "a_it0160");
+            assertThat(items.get(0).get("article").get("wordCountFromSummary").asBoolean()).isFalse();
+            assertThat(items.get(1).get("article").get("wordCountFromSummary").asBoolean()).isTrue();
+        } finally {
+            jdbc.update("UPDATE app.articles SET word_count_from_summary = false WHERE id = 'a_it0160'");
+        }
+    }
+
+    @Test
     void unsaveRemovesArticleFromSavedAndSaveAgainRestoresIt() throws Exception {
         RegisteredUser user = registerUser();
         Instant base = clientNow().minusSeconds(60);

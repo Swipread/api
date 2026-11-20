@@ -44,6 +44,9 @@ public class Article {
     @Column(name = "word_count", nullable = false)
     private int wordCount;
 
+    @Column(name = "word_count_from_summary", nullable = false)
+    private boolean wordCountFromSummary;
+
     @Column(name = "published_at", nullable = false)
     private Instant publishedAt;
 
@@ -84,6 +87,10 @@ public class Article {
 
     public int getWordCount() {
         return wordCount;
+    }
+
+    public boolean isWordCountFromSummary() {
+        return wordCountFromSummary;
     }
 
     public Instant getPublishedAt() {

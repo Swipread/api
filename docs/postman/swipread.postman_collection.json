@@ -494,6 +494,7 @@
                   "    pm.expect(item.topics).to.be.an(\"array\");",
                   "    pm.expect(item.liked).to.equal(false);",
                   "    pm.expect(item.saved).to.equal(false);",
+                  "    pm.expect(item.wordCountFromSummary).to.be.a(\"boolean\");",
                   "  });",
                   "  pm.collectionVariables.set(\"firstPageIds\", JSON.stringify(items.map(i => i.articleId)));",
                   "});"

@@ -13,7 +13,9 @@ import java.util.List;
  * requestId et reason sont à recopier dans les événements envoyés pour cet article.
  */
 public record FeedItem(String articleId, String title, String summary, String url, String imageUrl, String author,
-                       String sourceName, String language, int wordCount, Instant publishedAt,
+                       String sourceName, String language, int wordCount,
+                       @Schema(description = ArticleResponse.WORD_COUNT_FROM_SUMMARY) boolean wordCountFromSummary,
+                       Instant publishedAt,
                        @Schema(description = "Detected topics, most confident first") List<TopicResponse> topics,
                        @Schema(description = "Liked by the current user") boolean liked,
                        @Schema(description = "Saved by the current user") boolean saved,
@@ -21,7 +23,8 @@ public record FeedItem(String articleId, String title, String summary, String ur
 
     public static FeedItem of(ArticleResponse article, FeedOrigin origin, UserArticleStates.State state, int position) {
         return new FeedItem(article.id(), article.title(), article.summary(), article.url(), article.imageUrl(),
-                article.author(), article.sourceName(), article.language(), article.wordCount(), article.publishedAt(),
+                article.author(), article.sourceName(), article.language(), article.wordCount(), article.wordCountFromSummary(),
+                article.publishedAt(),
                 article.topics(), state.liked(), state.saved(), origin.requestId(), origin.reason(), position);
     }
 }
